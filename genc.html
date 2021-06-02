@@ -66,6 +66,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#operators">Operators</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#global-state">Global State</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#custom-conversion">Custom Conversion</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#custom-function-implementation">Custom Function Implementation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#custom-type-translation">Custom Type Translation</a></li>
@@ -261,13 +262,6 @@ at compile time).</p>
 <span class="p">}</span> <span class="n">W</span><span class="p">;</span>
 </pre></div>
 </div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Support for fixed length arrays is experimental and not fully implemented. At
-the moment, it is not possible to pass a fixed length array (e.g. coming from
-<code class="docutils literal notranslate"><span class="pre">W</span></code> in the example above) to a function expecting an array. It is also not
-possible to construct an element of <code class="docutils literal notranslate"><span class="pre">W</span></code>. <a class="reference external" href="https://github.com/epfl-lara/stainless/issues/1056">An issue</a> is open for these problems.</p>
-</div>
 </div>
 <div class="section" id="classes">
 <h4>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h4>
@@ -383,6 +377,102 @@ Patterns</em>, as long as it is exempt of side effect.</p>
 </table>
 </div>
 </div>
+<div class="section" id="global-state">
+<h2>Global State<a class="headerlink" href="#global-state" title="Permalink to this headline">¶</a></h2>
+<p>At the moment, Stainless does not support global mutable variables declared in objects.
+It is however possible to simulate global state by using classes marked with <code class="docutils literal notranslate"><span class="pre">&#64;cCode.global</span></code>,
+as shown in the <a class="reference external" href="https://github.com/epfl-lara/stainless/blob/master/frontends/benchmarks/genc/Global.scala">Global.scala</a>
+example:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="nd">@cCode</span><span class="o">.</span><span class="n">global</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">GlobalState</span><span class="o">(</span>
+  <span class="k">val</span> <span class="n">data</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="o">=</span> <span class="nc">Array</span><span class="o">.</span><span class="n">fill</span><span class="o">(</span><span class="mi">100</span><span class="o">)(</span><span class="mi">0</span><span class="o">),</span>
+  <span class="k">var</span> <span class="n">stable</span><span class="k">:</span> <span class="kt">Boolean</span> <span class="o">=</span> <span class="kc">true</span><span class="o">,</span>
+  <span class="k">var</span> <span class="n">x</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">5</span><span class="o">,</span>
+  <span class="k">var</span> <span class="n">y</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="mi">7</span><span class="o">,</span>
+<span class="o">)</span> <span class="o">{</span>
+  <span class="n">require</span><span class="o">(</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="mi">100</span> <span class="o">&amp;&amp;</span> <span class="o">(</span>
+      <span class="o">!</span><span class="n">stable</span> <span class="o">||</span> <span class="o">(</span>
+        <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">x</span> <span class="o">&amp;&amp;</span> <span class="n">x</span> <span class="o">&lt;=</span> <span class="mi">100</span> <span class="o">&amp;&amp;</span>
+        <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">y</span> <span class="o">&amp;&amp;</span> <span class="n">y</span> <span class="o">&lt;=</span> <span class="mi">100</span> <span class="o">&amp;&amp;</span>
+        <span class="n">x</span> <span class="o">+</span> <span class="n">y</span> <span class="o">==</span> <span class="mi">12</span>
+      <span class="o">)</span>
+    <span class="o">)</span>
+  <span class="o">)</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In classes annotated with <code class="docutils literal notranslate"><span class="pre">&#64;cCode.global</span></code>, only arrays with a fixed length are
+allowed. Please check the paragraph about arrays to learn how to specify the array length.</p>
+</div>
+<p>This annotation triggers some checks to make sure that indeed the <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code> class
+(the name of the class can be changed, and there can be multiple such classes) is used as a global
+state:</p>
+<ul class="simple">
+<li><p>Functions can take as argument at most one instance of <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code>.</p></li>
+<li><p>There can be at most one instance of <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code> created (in a function that doesn’t already take an instance as argument).</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code> instance can only be used for reads and assignments (e.g. it cannot be let bound, except for the declaration mentioned above).</p></li>
+<li><p>The only global state that can be passed to other functions is the one we create or the one we received as a function argument.</p></li>
+</ul>
+<p>These checks ensure that the fields of <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code> can be compiled as global variables in <code class="docutils literal notranslate"><span class="pre">C</span></code>.
+Consider the <code class="docutils literal notranslate"><span class="pre">move</span></code> function from the <a class="reference external" href="https://github.com/epfl-lara/stainless/blob/master/frontends/benchmarks/genc/Global.scala">Global.scala</a>
+example:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">move</span><span class="o">()(</span><span class="k">implicit</span> <span class="n">state</span><span class="k">:</span> <span class="kt">GlobalState</span><span class="o">)</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">require</span><span class="o">(</span><span class="n">state</span><span class="o">.</span><span class="n">stable</span> <span class="o">&amp;&amp;</span> <span class="n">state</span><span class="o">.</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stable</span> <span class="o">=</span> <span class="kc">false</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">x</span> <span class="o">+=</span> <span class="mi">1</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">y</span> <span class="o">-=</span> <span class="mi">1</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">data</span><span class="o">(</span><span class="n">state</span><span class="o">.</span><span class="n">y</span><span class="o">)</span> <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stable</span> <span class="o">=</span> <span class="kc">true</span>
+  <span class="k">if</span> <span class="o">(</span><span class="n">state</span><span class="o">.</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="n">move</span><span class="o">()</span>
+<span class="o">}.</span><span class="n">ensuring</span><span class="o">(</span><span class="k">_</span> <span class="o">=&gt;</span> <span class="n">state</span><span class="o">.</span><span class="n">stable</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>After compilation to C, we get the following function, with global declarations
+<code class="docutils literal notranslate"><span class="pre">stable</span></code>, <code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, and <code class="docutils literal notranslate"><span class="pre">data</span></code>.</p>
+<div class="highlight-C notranslate"><div class="highlight"><pre><span></span><span class="kt">int32_t</span> <span class="n">data</span><span class="p">[</span><span class="mi">100</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">0</span> <span class="p">};</span>
+<span class="kt">bool</span> <span class="n">stable</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+<span class="kt">int32_t</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+<span class="kt">int32_t</span> <span class="n">y</span> <span class="o">=</span> <span class="mi">7</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">move</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">stable</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="n">data</span><span class="p">[</span><span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="n">stable</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">move</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note that the initial values for the global variables correspond to the default values given
+in the Stainless class declaration (default values are mandatory when using the <code class="docutils literal notranslate"><span class="pre">&#64;cCode.global</span></code>
+annotation). When creating a global state instance (the only one), we do not pass arguments, to
+make sure that the instance is created using the default values:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="nd">@export</span>
+<span class="k">def</span> <span class="n">main</span><span class="o">()</span> <span class="o">{</span>
+  <span class="k">implicit</span> <span class="k">val</span> <span class="n">gs</span> <span class="o">=</span> <span class="nc">GlobalState</span><span class="o">()</span>
+  <span class="nc">StdOut</span><span class="o">.</span><span class="n">print</span><span class="o">(</span><span class="n">gs</span><span class="o">.</span><span class="n">x</span><span class="o">)</span>
+  <span class="nc">StdOut</span><span class="o">.</span><span class="n">print</span><span class="o">(</span><span class="n">gs</span><span class="o">.</span><span class="n">y</span><span class="o">)</span>
+  <span class="n">move</span><span class="o">()</span>
+  <span class="nc">StdOut</span><span class="o">.</span><span class="n">print</span><span class="o">(</span><span class="n">gs</span><span class="o">.</span><span class="n">data</span><span class="o">(</span><span class="mi">6</span><span class="o">))</span>
+  <span class="nc">StdOut</span><span class="o">.</span><span class="n">print</span><span class="o">(</span><span class="n">gs</span><span class="o">.</span><span class="n">data</span><span class="o">(</span><span class="mi">7</span><span class="o">))</span>
+  <span class="nc">StdOut</span><span class="o">.</span><span class="n">print</span><span class="o">(</span><span class="n">gs</span><span class="o">.</span><span class="n">x</span><span class="o">)</span>
+  <span class="nc">StdOut</span><span class="o">.</span><span class="n">println</span><span class="o">(</span><span class="n">gs</span><span class="o">.</span><span class="n">y</span><span class="o">)</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>Stainless supports two variants of the <code class="docutils literal notranslate"><span class="pre">&#64;cCode.global</span></code> annotation, namely <code class="docutils literal notranslate"><span class="pre">&#64;cCode.globalUninitialized</span></code>
+and <code class="docutils literal notranslate"><span class="pre">&#64;cCode.globalExternal</span></code>. The first one generates global declarations without initial
+values. These global variables are thus initialized according to C semantics, and there can be
+a mismatch between the global state instance created by the user, and the initial values in C.
+The second one hides the global declarations, which can be useful when interacting with C code
+that declares global variables outside of the Stainless program.</p>
+</div>
 <div class="section" id="custom-conversion">
 <h2>Custom Conversion<a class="headerlink" href="#custom-conversion" title="Permalink to this headline">¶</a></h2>
 <p>When it comes to function using system calls, such as I/Os, no automated conversion is possible. In
@@ -477,7 +567,7 @@ application might leak resources.</p>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2009-2019 EPFL, Lausanne.
-      <span class="lastupdated">Last updated on May 18, 2021.
+      <span class="lastupdated">Last updated on Jun 02, 2021.
       </span></p>
   </div>
 
