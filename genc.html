@@ -411,8 +411,9 @@ allowed. Please check the paragraph about arrays to learn how to specify the arr
 (the name of the class can be changed, and there can be multiple such classes) is used as a global
 state:</p>
 <ul class="simple">
-<li><p>Functions can take as argument at most one instance of <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code>.</p></li>
-<li><p>There can be at most one instance of <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code> created (in a function that doesn’t already take an instance as argument).</p></li>
+<li><p>Functions can take as argument at most one instance per each global class such as <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code>.</p></li>
+<li><p>There can be at most one instance created for each global class such as <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code>
+(in a function that doesn’t already take an instance of that class as argument).</p></li>
 <li><p>A <code class="docutils literal notranslate"><span class="pre">GlobalState</span></code> instance can only be used for reads and assignments (e.g. it cannot be let bound, except for the declaration mentioned above).</p></li>
 <li><p>The only global state that can be passed to other functions is the one we create or the one we received as a function argument.</p></li>
 </ul>

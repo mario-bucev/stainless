@@ -211,7 +211,10 @@ transform the above on the following equivalent implementation:</p>
 <span class="n">a</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span> <span class="c1">//10</span>
 </pre></div>
 </div>
-<p>Then Stainless would apply the same process as for any other imperative program.</p>
+<p>Stainless also has a <code class="docutils literal notranslate"><span class="pre">swap</span></code> operation in <code class="docutils literal notranslate"><span class="pre">stainless.lang</span></code>, which is equivalent to two updates.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">swap</span><span class="o">[</span><span class="kt">@mutable</span> <span class="kt">T</span><span class="o">](</span><span class="n">a1</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">T</span><span class="o">],</span> <span class="n">i1</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a2</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">T</span><span class="o">],</span> <span class="n">i2</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Unit</span>
+</pre></div>
+</div>
 </div>
 <div class="section" id="mutable-objects">
 <h2>Mutable Objects<a class="headerlink" href="#mutable-objects" title="Permalink to this headline">¶</a></h2>
@@ -497,7 +500,7 @@ It is however not supported for anonymous functions.</p>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2009-2019 EPFL, Lausanne.
-      <span class="lastupdated">Last updated on May 28, 2021.
+      <span class="lastupdated">Last updated on Jun 02, 2021.
       </span></p>
   </div>
 
