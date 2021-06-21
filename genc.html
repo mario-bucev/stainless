@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Generating C Code &mdash; Stainless 0.8.0 documentation</title>
+  <title>Generating C Code &mdash; Stainless 0.8.1 documentation</title>
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -67,6 +67,7 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#global-state">Global State</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#export">Export</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#custom-conversion">Custom Conversion</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#custom-function-implementation">Custom Function Implementation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#custom-type-translation">Custom Type Translation</a></li>
@@ -474,6 +475,15 @@ a mismatch between the global state instance created by the user, and the initia
 The second one hides the global declarations, which can be useful when interacting with C code
 that declares global variables outside of the Stainless program.</p>
 </div>
+<div class="section" id="export">
+<h2>Export<a class="headerlink" href="#export" title="Permalink to this headline">¶</a></h2>
+<p>Functions and classes can be marked with <code class="docutils literal notranslate"><span class="pre">&#64;export</span></code>, which affects GenC compilation in several ways.
+First, the names of these functions and classes will not get mangled when generating the C code.
+Second, the signatures of the functions, and the type definitions corresponding to exported classes,
+will go into the header file (by default <code class="docutils literal notranslate"><span class="pre">stainless.h</span></code>).
+Finally, preconditions of exported functions (which are meant to be called from external C code),
+are transformed into runtime assertions.</p>
+</div>
 <div class="section" id="custom-conversion">
 <h2>Custom Conversion<a class="headerlink" href="#custom-conversion" title="Permalink to this headline">¶</a></h2>
 <p>When it comes to function using system calls, such as I/Os, no automated conversion is possible. In
@@ -568,7 +578,7 @@ application might leak resources.</p>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2009-2019 EPFL, Lausanne.
-      <span class="lastupdated">Last updated on Jun 02, 2021.
+      <span class="lastupdated">Last updated on Jun 21, 2021.
       </span></p>
   </div>
 
