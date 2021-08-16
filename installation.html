@@ -364,11 +364,7 @@ $ sbt universal:stage
 </pre></div>
 </div>
 <p><strong>Where to find generated files</strong></p>
-<p>The compilation will automatically generate the following two bash scripts:</p>
-<ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">frontends/scalac/target/universal/stage/bin/stainless-scalac</span></code> that will use the <code class="docutils literal notranslate"><span class="pre">scalac</span></code> compiler as frontend,</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">frontends/stainless-dotty/target/universal/stage/bin/stainless-dotty</span></code> that uses the <code class="docutils literal notranslate"><span class="pre">dotc</span></code> compiler as frontend (experimental).</p></li>
-</ol>
+<p>The compilation will automatically generate the bash script <code class="docutils literal notranslate"><span class="pre">frontends/scalac/target/universal/stage/bin/stainless-scalac</span></code> that uses the <code class="docutils literal notranslate"><span class="pre">scalac</span></code> compiler as frontend.</p>
 <p>You may want to introduce a soft-link from <code class="docutils literal notranslate"><span class="pre">frontends/scalac/target/universal/stage/bin/stainless-scalac</span></code> to a file called <code class="docutils literal notranslate"><span class="pre">stainless</span></code>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ ln -s frontends/scalac/target/universal/stage/bin/stainless-scalac stainless
 </pre></div>
@@ -381,21 +377,19 @@ $ sbt universal:stage
 </div>
 <div class="section" id="build-from-source-on-windows-10">
 <h2>Build from Source on Windows 10<a class="headerlink" href="#build-from-source-on-windows-10" title="Permalink to this headline">¶</a></h2>
-<p>Before following the infrequently updated instructions in this section, considering running Ubuntu on Windows 10  and following the instructions for Linux. That said, Stainless is just a JVM application that invokes binaries that are also available for Windows, so it is not too difficult to build a version that runs without a VM.</p>
-<p>Get the sources of Stainless by cloning the official Stainless repository. You will need a Git shell for windows, e.g.  <a class="reference external" href="https://git-for-windows.github.io/">Git for Windows</a>.</p>
+<p>Before following the infrequently updated instructions in this section, considering running Ubuntu on Windows 10 and following the instructions for Linux.</p>
+<p>Get the sources of Stainless by cloning the official Stainless repository. You will need a Git shell for windows, e.g.  <a class="reference external" href="https://git-for-windows.github.io/">Git for Windows</a>.
+On Windows, please do not use <code class="docutils literal notranslate"><span class="pre">sbt</span> <span class="pre">universal:stage</span></code> as this generates a Windows batch file which is unusable, because it contains commands that are too long for Windows.
+Instead, please use <code class="docutils literal notranslate"><span class="pre">sbt</span> <span class="pre">stainless-scalac-standalone/assembly</span></code> as follows:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/epfl-lara/stainless.git
 Cloning into <span class="s1">&#39;stainless&#39;</span>...
 // ...
 $ <span class="nb">cd</span> stainless
-$ sbt clean universal:stage
+$ sbt stainless-scalac-standalone/assembly
 // takes about <span class="m">1</span> minutes
 </pre></div>
 </div>
-<p>Compilation will automatically generate the following two bash scripts:</p>
-<ol class="arabic simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">frontends/scalac/target/universal/stage/bin/stainless-scalac.bat</span></code> that will use the <code class="docutils literal notranslate"><span class="pre">scalac</span></code> compiler as frontend,</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">frontends/stainless-dotty/target/universal/stage/bin/stainless-dotty.bat</span></code> that uses the <code class="docutils literal notranslate"><span class="pre">dotc</span></code> compiler as frontend (experimental).</p></li>
-</ol>
+<p>Running Stainless can then be done with the command: <code class="docutils literal notranslate"><span class="pre">java</span> <span class="pre">-jar</span> <span class="pre">frontends\stainless-scalac-standalone\target\scala-2.12\stainless-scalac-standalone-{VERSION}.jar</span></code>, where <code class="docutils literal notranslate"><span class="pre">VERSION</span></code> denotes Stainless version.</p>
 </div>
 <div class="section" id="running-tests">
 <h2>Running Tests<a class="headerlink" href="#running-tests" title="Permalink to this headline">¶</a></h2>
