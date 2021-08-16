@@ -246,7 +246,7 @@ at compile time).</p>
 <span class="k">val</span> <span class="nc">CONSTANT2</span><span class="k">:</span> <span class="kt">UInt16</span> <span class="o">=</span> <span class="mi">12</span>
 <span class="k">val</span> <span class="nc">CONSTANT3</span><span class="k">:</span> <span class="kt">UInt16</span> <span class="o">=</span> <span class="nc">CONSTANT1</span> <span class="o">+</span> <span class="nc">CONSTANT2</span>
 
-<span class="nd">@export</span>
+<span class="nd">@cCode</span><span class="o">.</span><span class="n">export</span>
 <span class="k">case</span> <span class="k">class</span> <span class="nc">W</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Int</span><span class="o">],</span> <span class="n">y</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="o">{</span>
   <span class="n">require</span><span class="o">(</span>
     <span class="n">a</span><span class="o">.</span><span class="n">length</span> <span class="o">==</span> <span class="nc">CONSTANT3</span><span class="o">.</span><span class="n">toInt</span> <span class="o">&amp;&amp;</span>
@@ -455,7 +455,7 @@ example:</p>
 in the Stainless class declaration (default values are mandatory when using the <code class="docutils literal notranslate"><span class="pre">&#64;cCode.global</span></code>
 annotation). When creating a global state instance (the only one), we do not pass arguments, to
 make sure that the instance is created using the default values:</p>
-<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="nd">@export</span>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="nd">@cCode</span><span class="o">.</span><span class="n">export</span>
 <span class="k">def</span> <span class="n">main</span><span class="o">()</span> <span class="o">{</span>
   <span class="k">implicit</span> <span class="k">val</span> <span class="n">gs</span> <span class="o">=</span> <span class="nc">GlobalState</span><span class="o">()</span>
   <span class="nc">StdOut</span><span class="o">.</span><span class="n">print</span><span class="o">(</span><span class="n">gs</span><span class="o">.</span><span class="n">x</span><span class="o">)</span>
@@ -578,7 +578,7 @@ application might leak resources.</p>
 
   <div role="contentinfo">
     <p>&#169; Copyright 2009-2019 EPFL, Lausanne.
-      <span class="lastupdated">Last updated on Jun 21, 2021.
+      <span class="lastupdated">Last updated on Aug 16, 2021.
       </span></p>
   </div>
 

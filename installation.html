@@ -52,7 +52,7 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#external-solver-binaries">External Solver Binaries</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#install-z3-4-8-10-linux-macos">Install Z3 4.8.10 (Linux &amp; macOS)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#install-z3-4-8-12-linux-macos">Install Z3 4.8.12 (Linux &amp; macOS)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#install-cvc-1-8-linux">Install CVC 1.8 (Linux)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#install-cvc-1-6-macos">Install CVC 1.6 (macOS)</a></li>
 </ul>
@@ -133,7 +133,7 @@ Make sure that <code class="docutils literal notranslate"><span class="pre">java
 <div class="section" id="use-standalone-release-recommended">
 <span id="standalone-release"></span><h2>Use Standalone Release (recommended)<a class="headerlink" href="#use-standalone-release-recommended" title="Permalink to this headline">¶</a></h2>
 <ol class="arabic simple">
-<li><p>Download the latest Stainless release from the <a class="reference external" href="https://github.com/epfl-lara/stainless/releases">Releases page on GitHub</a>, under the <strong>Assets</strong> section. Make sure to pick the appropriate ZIP for your operating system. This release is bundled with Z3 4.8.10.</p></li>
+<li><p>Download the latest Stainless release from the <a class="reference external" href="https://github.com/epfl-lara/stainless/releases">Releases page on GitHub</a>, under the <strong>Assets</strong> section. Make sure to pick the appropriate ZIP for your operating system. This release is bundled with Z3 4.8.12.</p></li>
 <li><p>Unzip the the file you just downloaded to a directory.</p></li>
 <li><p>(Optional) Add this directory to your <code class="docutils literal notranslate"><span class="pre">PATH</span></code>. This will let you invoke Stainless via the <code class="docutils literal notranslate"><span class="pre">stainless</span></code> command instead of its fully qualified path in step 5.</p></li>
 <li><p>Paste the following code in a file named <code class="docutils literal notranslate"><span class="pre">test.scala</span></code>:</p></li>
@@ -283,17 +283,17 @@ one can add the following settings to their build:</p></li>
 <p>To improve performance, we highly recommend that you install the following two additional external SMT solvers as binaries for your platform:</p>
 <ul class="simple">
 <li><p>CVC4 1.8, <a class="reference external" href="http://cvc4.cs.stanford.edu">http://cvc4.cs.stanford.edu</a></p></li>
-<li><p>Z3 4.8.10, <a class="reference external" href="https://github.com/Z3Prover/z3">https://github.com/Z3Prover/z3</a></p></li>
+<li><p>Z3 4.8.12, <a class="reference external" href="https://github.com/Z3Prover/z3">https://github.com/Z3Prover/z3</a></p></li>
 </ul>
 <p>You can enable these solvers using <code class="docutils literal notranslate"><span class="pre">--solvers=smt-z3</span></code> and <code class="docutils literal notranslate"><span class="pre">--solvers=smt-cvc4</span></code> flags.</p>
 <p>Solver binaries that you install should match your operating system and your architecture. We recommend that you install these solvers as a binary and have their binaries available in the <code class="docutils literal notranslate"><span class="pre">$PATH</span></code> (as <code class="docutils literal notranslate"><span class="pre">z3</span></code> or <code class="docutils literal notranslate"><span class="pre">cvc4</span></code>).</p>
 <p>Note that somewhat lower version numbers of solvers should work as well and might even have different sets of soundness-related issues.</p>
 <p>You can use multiple solvers in portfolio mode, as with the options <code class="docutils literal notranslate"><span class="pre">--timeout=15</span> <span class="pre">--solvers=smt-z3,smt-cvc4</span></code>, where verification succeeds if at least one of the solvers proves (within the given number of seconds) each the verification conditions. We suggest to order the solvers starting from the one most likely to succeed quickly.</p>
 <p>For final verification runs of highly critical software, we recommend that (instead of the portfolio mode) you obtain several solvers and their versions, then try a single solver at a time and ensure that each verification run succeeds (thus applying N-version programming to SMT solver implementations).</p>
-<div class="section" id="install-z3-4-8-10-linux-macos">
-<h3>Install Z3 4.8.10 (Linux &amp; macOS)<a class="headerlink" href="#install-z3-4-8-10-linux-macos" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="install-z3-4-8-12-linux-macos">
+<h3>Install Z3 4.8.12 (Linux &amp; macOS)<a class="headerlink" href="#install-z3-4-8-12-linux-macos" title="Permalink to this headline">¶</a></h3>
 <ol class="arabic simple">
-<li><p>Download Z3 4.8.10 from <a class="reference external" href="https://github.com/Z3Prover/z3/releases/tag/z3-4.8.10">https://github.com/Z3Prover/z3/releases/tag/z3-4.8.10</a></p></li>
+<li><p>Download Z3 4.8.12 from <a class="reference external" href="https://github.com/Z3Prover/z3/releases/tag/z3-4.8.12">https://github.com/Z3Prover/z3/releases/tag/z3-4.8.12</a></p></li>
 <li><p>Unzip the downloaded archive</p></li>
 <li><p>Copy the <code class="docutils literal notranslate"><span class="pre">z3</span></code> binary found in the <code class="docutils literal notranslate"><span class="pre">bin/</span></code> directory of the inflated archive to a directory in your <code class="docutils literal notranslate"><span class="pre">$PATH</span></code>, eg., <code class="docutils literal notranslate"><span class="pre">/usr/local/bin</span></code>.</p></li>
 <li><p>Make sure <code class="docutils literal notranslate"><span class="pre">z3</span></code> can be found, by opening a new terminal window and typing:</p></li>
@@ -304,7 +304,7 @@ one can add the following settings to their build:</p></li>
 <ol class="arabic simple" start="5">
 <li><p>The output should read:</p></li>
 </ol>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Z3 version 4.8.10 - 64 bit`
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Z3 version 4.8.12 - 64 bit`
 </pre></div>
 </div>
 </div>
@@ -477,7 +477,7 @@ type <code class="docutils literal notranslate"><span class="pre">make</span> <s
 
   <div role="contentinfo">
     <p>&#169; Copyright 2009-2019 EPFL, Lausanne.
-      <span class="lastupdated">Last updated on Jun 21, 2021.
+      <span class="lastupdated">Last updated on Aug 16, 2021.
       </span></p>
   </div>
 
