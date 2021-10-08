@@ -24,7 +24,7 @@ class ExplicitNumericPromotionSuite extends AnyFunSuite with InputUtils {
   test("Catch unsupported expressions") {
     for (u <- unsupported) {
       val ctx = stainless.TestContext.empty
-      assertThrows[Throwable](load(Seq(u))(ctx))
+      assertThrows[Throwable](load(Seq(u))(using ctx))
     }
   }
 
@@ -144,7 +144,8 @@ class ExplicitNumericPromotionSuite extends AnyFunSuite with InputUtils {
        |} """.stripMargin
   )
 
-  implicit val ctx = stainless.TestContext.empty
+  val ctx: inox.Context = stainless.TestContext.empty
+  import ctx.given
   val (_, xlangProgram) = load(sources)
   val run = verification.VerificationComponent.run(extraction.pipeline)
   val program = inox.Program(run.trees)(run extract xlangProgram.symbols)
@@ -170,7 +171,7 @@ class ExplicitNumericPromotionSuite extends AnyFunSuite with InputUtils {
   }
 
   case class V(name: String, typ: Type) extends Expr {
-    def getType(implicit s: Symbols): Type = typ
+    def getType(using Symbols): Type = typ
 
     override def equals(o: Any) = o match {
       case Var(nme, `typ`) => nme.dropWhile(_ == '~') == name
@@ -412,6 +413,4 @@ class ExplicitNumericPromotionSuite extends AnyFunSuite with InputUtils {
       case b => fail(s"Expected a function call with one widening cast on its only argument, got '$b'")
     }
   }
-
 }
-
