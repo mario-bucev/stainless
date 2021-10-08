@@ -93,22 +93,33 @@ class SymbolMapping {
 
 }
 
-class ScalaCompiler(settings: NSCSettings, ctx: inox.Context, callback: CallBack, cache: SymbolMapping)
+class ScalaCompiler(settings: NSCSettings, val ctx: inox.Context, val callback: CallBack, val cache: SymbolMapping)
   extends Global(settings, new SimpleReporter(settings, ctx.reporter))
-     with Positions {
+     with Positions { self =>
 
-  object stainlessExtraction extends {
-    override val global: ScalaCompiler.this.type = ScalaCompiler.this
+  // Normally, we would initialize the fields with early-initializer. Since this feature has been dropped in Scala 3,
+  // we work-around that by definining a dummy class overriding all members.
+  // This ensure that these fields are correctly initialized
+  class StainlessExtractionImpl(override val global: self.type,
+                                override val phaseName: String,
+                                override val runsAfter: List[String],
+                                override val runsRightAfter: Option[String],
+                                override val runsBefore: List[String],
+                                override val ctx: self.ctx.type,
+                                override val callback: self.callback.type,
+                                override val cache: self.cache.type)
+    extends StainlessExtraction with ASTExtractors(global)
 
-    override val phaseName      = "stainless"
-    override val runsAfter      = List("typer")
-    override val runsRightAfter = None
-    override val runsBefore     = List("patmat")
-
-    override val ctx      = ScalaCompiler.this.ctx
-    override val callback = ScalaCompiler.this.callback
-    override val cache    = ScalaCompiler.this.cache
-  } with StainlessExtraction
+  val stainlessExtraction = new StainlessExtractionImpl(
+    global = self,
+    phaseName = "stainless",
+    runsAfter = List("typer"),
+    runsRightAfter = None,
+    runsBefore = List("patmat"),
+    ctx = self.ctx,
+    callback = self.callback,
+    cache = self.cache
+  )
 
   override protected def computeInternalPhases() : Unit = {
     val phs = List(
@@ -139,11 +150,11 @@ object ScalaCompiler {
         val args = allCompilerArguments(ctx, compilerArgs)
         val settings = buildSettings(ctx)
 
-        override val sources = getFiles(args, ctx, settings)
+        override val sources: List[String] = getFiles(args, ctx, settings)
 
         override def initRun(): Unit = {
           assert(underlying == null)
-          val compiler = new ScalaCompiler(settings, ctx, callback, cache)
+          val compiler = new ScalaCompiler(settings, ctx, this.callback, cache)
           underlying = new compiler.Run
         }
 

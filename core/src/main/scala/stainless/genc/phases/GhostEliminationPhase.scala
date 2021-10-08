@@ -7,11 +7,9 @@ package phases
 import extraction._
 import extraction.throwing. { trees => tt }
 
-trait GhostElimination extends inox.transformers.Transformer {
-  override val s: throwing.Trees
-  override val t: throwing.Trees
-  val symbols: s.Symbols
-
+class GhostElimination(override val s: throwing.Trees,
+                       override val t: throwing.Trees)
+                      (val symbols: s.Symbols) extends inox.transformers.Transformer {
   case class Env(lfds: Map[Identifier, s.LocalFunDef])
 
   private def keepFlag(flag: s.Flag): Boolean =
@@ -74,7 +72,7 @@ trait GhostElimination extends inox.transformers.Transformer {
     case fi: s.FunctionInvocation =>
       val fd = symbols.getFunction(fi.id)
       if (fd.flags.contains(s.Ghost)) {
-        println("ghost", fd.id)
+        println(s"ghost ${fd.id}")
         ???
       } else {
         val filteredArgs = fi.args.zip(fd.params).filter {
@@ -126,25 +124,17 @@ trait GhostElimination extends inox.transformers.Transformer {
 
 }
 
-
-trait GhostEliminationPhase extends LeonPipeline[tt.Symbols, tt.Symbols] {
+class GhostEliminationPhase(using override val context: inox.Context) extends LeonPipeline[tt.Symbols, tt.Symbols](context) {
   val name = "Ghost Code Elimination"
 
-  implicit val debugSection = DebugSectionGenC
+  given givenDebugSection: DebugSectionGenC.type = DebugSectionGenC
   import tt._
 
   def run(syms: Symbols): Symbols = {
-    val ge = new GhostElimination {
-      override val s: tt.type = tt
-      override val t: tt.type = tt
-      override val symbols = syms
-    }
+    class Impl(override val s: tt.type, override val t: tt.type, override val symbols: syms.type)
+      extends GhostElimination(s, t)(symbols)
+    val ge = new Impl(tt, tt, syms)
     ge.transform(syms)
   }
 }
 
-object GhostEliminationPhase {
-  def apply(implicit ctx: inox.Context): LeonPipeline[tt.Symbols, tt.Symbols] = new {
-    val context = ctx
-  } with GhostEliminationPhase
-}

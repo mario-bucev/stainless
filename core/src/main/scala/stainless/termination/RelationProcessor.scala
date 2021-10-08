@@ -7,17 +7,24 @@ import scala.language.existentials
 
 import inox.utils._
 
-trait RelationProcessor extends OrderingProcessor {
-  val ordering: OrderingRelation with Strengthener with RelationBuilder {
-    val checker: RelationProcessor.this.checker.type
-  }
+class RelationProcessor(override val checker: ProcessingPipeline)
+                       // Alias for checker, as we cannot use it to define ordering
+                       (override val chker: checker.type)
+                       (override val ordering: OrderingRelation with Strengthener with RelationBuilder {
+                         val checker: chker.type
+                       })
+  extends OrderingProcessor("Relation Processor " + ordering.description, checker, ordering) {
 
-  val name: String = "Relation Processor " + ordering.description
+  def this(chker: ProcessingPipeline,
+           ordering: OrderingRelation with Strengthener with RelationBuilder {
+             val checker: chker.type
+           }) =
+    this(chker)(chker)(ordering)
 
   import checker._
   import checker.context._
   import checker.program.trees._
-  import checker.program.symbols._
+  import checker.program.symbols.{given, _}
   import ordering._
 
   def run(problem: Problem): Option[Seq[Result]] = timers.termination.processors.relation.run {

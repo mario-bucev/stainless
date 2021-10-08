@@ -6,7 +6,7 @@ package verification
 import inox.solvers.Solver
 
 /** This is just to hold some history information. */
-case class VC[T <: ast.Trees](condition: T#Expr, fid: Identifier, kind: VCKind, satisfiability: Boolean)
+case class VC[T <: ast.Trees](val trees: T)(val condition: trees.Expr, val fid: Identifier, val kind: VCKind, val satisfiability: Boolean)
   extends inox.utils.Positioned
 
 sealed abstract class VCKind(val name: String, val abbrv: String) {

@@ -5,11 +5,13 @@
 package stainless
 package genc
 
-import extraction._
+import extraction.*
 
-trait LeonInlining extends CachingPhase with extraction.IdentitySorts with oo.IdentityClasses with oo.IdentityTypeDefs { self =>
-  val s: oo.Trees
-  val t: oo.Trees
+class LeonInlining(override val s: oo.Trees, override val t: oo.Trees)(using override val context: inox.Context)
+  extends CachingPhase
+     with extraction.IdentitySorts
+     with oo.IdentityClasses
+     with oo.IdentityTypeDefs { self =>
   import s._
 
   // The function inlining transformation depends on all (transitive) callees
@@ -26,20 +28,18 @@ trait LeonInlining extends CachingPhase with extraction.IdentitySorts with oo.Id
   override protected type TransformerContext = s.Symbols
   override protected def getContext(symbols: s.Symbols) = symbols
 
-  private[this] object identity extends transformers.TreeTransformer {
-    override val s: self.s.type = self.s
-    override val t: self.t.type = self.t
-  }
+  private[this] class Identity(override val s: self.s.type, override val t: self.t.type) extends transformers.ConcreteTreeTransformer(s, t)
+  private[this] val identity = new Identity(self.s, self.t)
 
   override protected def registerFunctions(symbols: t.Symbols, functions: Seq[Option[t.FunDef]]): t.Symbols =
     symbols.withFunctions(functions.flatten)
 
   override protected def extractFunction(syms: s.Symbols, fd: s.FunDef): Option[t.FunDef] = {
-    import syms._
+    import syms.{given, _}
 
-    object Inliner extends s.SelfTreeTransformer {
+    object Inliner extends s.ConcreteOOSelfTreeTransformer { inlSelf =>
 
-      override def transform(expr: s.Expr): t.Expr = expr match {
+      override def transform(expr: inlSelf.s.Expr): inlSelf.t.Expr = expr match {
         case fi: FunctionInvocation =>
           inlineFunctionInvocations(fi.copy(args = fi.args map transform).copiedFrom(fi)).copiedFrom(fi)
 
@@ -88,10 +88,8 @@ trait LeonInlining extends CachingPhase with extraction.IdentitySorts with oo.Id
 
         // We check with this ghost traverser that there is no function call to a `cCode.inline`
         // function outside of a ghost context. In which case we can do the `simple` inlining.
-        var simple = true
-        val gt = new oo.GhostTraverser {
-          override val trees: self.s.type = self.s
-          override val symbols = syms
+        class GTImpl(override val trees: self.s.type, var simple: Boolean = true)(using override val symbols: syms.type)
+          extends oo.GhostTraverser {
           override def traverse(e: Expr, ctx: GhostContext): Unit = e match {
             case fi: FunctionInvocation if !ctx.isGhost && syms.getFunction(fi.id).flags.exists(_.name == "cCode.inline") =>
               simple = false
@@ -99,9 +97,10 @@ trait LeonInlining extends CachingPhase with extraction.IdentitySorts with oo.Id
               super.traverse(e, ctx)
           }
         }
+        val gt = new GTImpl(self.s)(using syms)
         gt.traverse(specced.letsAndBody, gt.initEnv)
 
-        if (args.forall(isValue) && simple) {
+        if (args.forall(isValue) && gt.simple) {
           exprOps.replaceFromSymbols(tfd.params.zip(args).toMap, exprOps.freshenLocals(specced.letsAndBody))
         } else {
           // We need to keep the body as-is for `@synthetic` methods, such as
@@ -142,12 +141,11 @@ trait LeonInlining extends CachingPhase with extraction.IdentitySorts with oo.Id
 }
 
 object LeonInlining {
-  def apply(ts: oo.Trees, tt: oo.Trees)(implicit ctx: inox.Context): ExtractionPipeline {
+  def apply(ts: oo.Trees, tt: oo.Trees)(using inox.Context): ExtractionPipeline {
     val s: ts.type
     val t: tt.type
-  } = new LeonInlining {
-    override val s: ts.type = ts
-    override val t: tt.type = tt
-    override val context = ctx
+  } = {
+    class Impl(override val s: ts.type, override val t: tt.type)(using override val context: inox.Context) extends LeonInlining(s, t)
+    new Impl(ts, tt)
   }
 }

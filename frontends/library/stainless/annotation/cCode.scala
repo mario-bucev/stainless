@@ -55,7 +55,7 @@ object cCode {
 
   /* Export function into a header file for GenC translation */
   @ignore
-  class export extends StaticAnnotation
+  class `export` extends StaticAnnotation
 
   /*
    * Allows the user to define a type (e.g. case class) as a typeDef to an

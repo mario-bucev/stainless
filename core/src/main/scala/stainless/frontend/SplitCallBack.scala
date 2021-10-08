@@ -23,7 +23,7 @@ import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration._
 
 
-class SplitCallBack(components: Seq[Component])(override implicit val context: inox.Context)
+class SplitCallBack(components: Seq[Component])(using override val context: inox.Context)
   extends CallBack with CheckFilter with StainlessReports { self =>
 
   protected final override val trees = extraction.xlang.trees
@@ -41,7 +41,7 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
 
   private[this] val runs = components.map(_.run(pipeline))
 
-  private implicit val debugSection = DebugSectionFrontend
+  private given givenDebugSection: DebugSectionFrontend.type = DebugSectionFrontend
 
   /******************* Public Interface: Override CallBack ***************************************/
 
@@ -169,7 +169,7 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
     val preSyms = xt.NoSymbols.withClasses(clsDeps).withFunctions(funDeps ++ funs).withTypeDefs(typeDeps)
     val funSyms = preprocessing.debug(Preprocessing().transform)(preSyms)
 
-    val cf = serialize(funs)(funSyms)
+    val cf = serialize(funs)(using funSyms)
 
     val futureReport = cache.getOrElseUpdate(cf, processFunctionsSymbols(ids, funSyms))
     this.synchronized { tasks += futureReport }
@@ -203,12 +203,11 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
       }
     }
 
-    Future.sequence(componentReports).map(Report)
+    Future.sequence(componentReports).map(Report.apply)
   }
 
-  private def serialize(fds: Set[xt.FunDef])(implicit syms: xt.Symbols): SerializationResult = {
+  private def serialize(fds: Set[xt.FunDef])(using syms: xt.Symbols): SerializationResult =
     serializer.serialize(canonization(syms, fds.toSeq.map(_.id).sorted))
-  }
 
   private def reportError(pos: inox.utils.Position, msg: String, syms: xt.Symbols): Unit = {
     reporter.error(pos, msg)

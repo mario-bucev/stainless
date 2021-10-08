@@ -6,21 +6,27 @@ package termination
 import scala.language.existentials
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
-trait ChainProcessor extends OrderingProcessor {
+class ChainProcessor(override val checker: ProcessingPipeline)
+                    // Alias for checker, as we cannot use it to define ordering
+                    (override val chker: checker.type)
+                    (override val ordering: OrderingRelation with ChainBuilder with Strengthener with StructuralSize {
+                      val checker: chker.type
+                    })
+  extends OrderingProcessor("Chain Processor", checker, ordering) {
 
-  val ordering: OrderingRelation with ChainBuilder with Strengthener with StructuralSize {
-    val checker: ChainProcessor.this.checker.type
-  }
+  def this(chker: ProcessingPipeline,
+           ordering: OrderingRelation with ChainBuilder with Strengthener with StructuralSize {
+             val checker: chker.type
+           }) =
+    this(chker)(chker)(ordering)
 
   val depth: Int = 1
-
-  val name: String = "Chain Processor"
 
   import checker._
   import ordering._
   import checker.context._
   import checker.program.trees._
-  import checker.program.symbols._
+  import checker.program.symbols.{given, _}
 
   private def lessThan(e1s: Seq[(Path, Expr)], e2: Expr): Seq[(Expr, Expr, Expr => Expr)] =
     flatTypesPowerset(e2.getType).toSeq.map(recons => (andJoin(e1s.map {

@@ -8,13 +8,11 @@ import scala.language.existentials
 
 object DebugSectionMeasureInference extends inox.DebugSection("measure-inference")
 
-trait MeasureInference
+class MeasureInference(override val s: Trees, override val t: Trees)(using override val context: inox.Context)
   extends extraction.CachingPhase
-    with extraction.SimplyCachedSorts
-    with extraction.IdentitySorts { self =>
+     with extraction.SimplyCachedSorts
+     with extraction.IdentitySorts { self =>
 
-  val s: Trees
-  val t: Trees
   import s._
 
   import context.{options, timers, reporter}
@@ -24,17 +22,18 @@ trait MeasureInference
   // Result type is transformed function + all inductive lemmas found
   type FunctionResult = (t.FunDef, Postconditions)
 
-  implicit val debugSection = DebugSectionMeasureInference
+  given givenDebugSection: DebugSectionMeasureInference.type = DebugSectionMeasureInference
 
   // Measure inference depends on functions that are mutually recursive with `fd`,
   // so we include all dependencies in the key calculation
   override protected final val funCache = new ExtractionCache[s.FunDef, FunctionResult]((fd, context) =>
-    getDependencyKey(fd.id)(context.symbols)
+    getDependencyKey(fd.id)(using context.symbols)
   )
 
-  val sizes: SizeFunctions { val trees: s.type } = new {
-    val trees: s.type = self.s
-  } with SizeFunctions
+  val sizes: SizeFunctions { val trees: s.type } = {
+    class SizeFunctionsImpl(override val trees: s.type) extends SizeFunctions(trees)
+    new SizeFunctionsImpl(s)
+  }
 
   override protected def getContext(symbols: s.Symbols) = TransformerContext(symbols, MutableMap.empty, MutableMap.empty, MutableMap.empty)
 
@@ -42,21 +41,23 @@ trait MeasureInference
                                           measureCache:       MutableMap[FunDef, Expr], 
                                           postconditionCache: MutableMap[Identifier, Postconditions], 
                                           applicationCache:   Applications) {
+    import symbols.given
     val program = inox.Program(s)(symbols)
 
     val pipeline = TerminationChecker(program, self.context)(sizes)
 
-    final object transformer extends inox.transformers.TreeTransformer {
-      override val s: self.s.type = self.s
-      override val t: self.t.type = self.t
+    val transformer = new TransformerImpl(self.s, self.t)
+
+    class TransformerImpl(override val s: self.s.type, override val t: self.t.type)
+      extends inox.transformers.ConcreteTreeTransformer(s, t) {
 
       override def transform(e: s.Expr): t.Expr = e match {
-        case Decreases(v: Variable, body) if v.getType(symbols).isInstanceOf[ADTType] =>
+        case Decreases(v: Variable, body) if v.getType.isInstanceOf[ADTType] =>
           t.Decreases(transform(size(v)), transform(body)).setPos(e)
 
         case Decreases(tup @ Tuple(ts), body) =>
           t.Decreases(t.Tuple(ts.map {
-            case v: Variable if v.getType(symbols).isInstanceOf[ADTType] => transform(size(v))
+            case v: Variable if v.getType.isInstanceOf[ADTType] => transform(size(v))
             case e => transform(e)
           }).copiedFrom(tup), transform(body)).setPos(e)
 
@@ -65,8 +66,8 @@ trait MeasureInference
       }
 
       private def size(v: Variable): Expr = {
-        require(v.getType(symbols).isInstanceOf[ADTType])
-        val ADTType(id, tps) = v.getType(symbols)
+        require(v.getType.isInstanceOf[ADTType])
+        val ADTType(id, tps) = v.getType
         FunctionInvocation(sizes.fullSizeId(symbols.sorts(id)), tps, Seq(v)).setPos(v)
       }
     }
@@ -80,10 +81,8 @@ trait MeasureInference
       postconditionCache.getOrElse(id, MutableMap())
 
     def annotateApps(original: FunDef) = {
-      object injector extends inox.transformers.TreeTransformer {
-        val s: self.s.type = self.s
-        val t: self.s.type = self.s
-
+      class Injector(override val s: self.s.type, override val t: self.s.type)
+        extends inox.transformers.ConcreteTreeTransformer(s, t) {
         override def transform(e: Expr): Expr = e match {
           case fi @ FunctionInvocation(_, _, args) =>
             fi.copy(args = (symbols.getFunction(fi.id).params.map(_.id) zip args).map {
@@ -112,7 +111,7 @@ trait MeasureInference
         }
       }
 
-      injector.transform(original)
+      new Injector(self.s, self.s).transform(original)
     }
 
     /* Annotation order matters, postconditions can 
@@ -201,13 +200,9 @@ trait MeasureInference
     val posts: Map[Identifier, s.Lambda] = results.flatMap{ case (tfd,post) => post }.toMap
     
     def annotatePosts(original: t.FunDef) = {
-      val postTransformer: transformers.TreeTransformer {
-        val s: self.s.type;
-        val t: self.t.type
-      } = new transformers.TreeTransformer { 
-        val s: self.s.type = self.s; 
-        val t: self.t.type = self.t 
-      }
+      class PostTransformer(override val s: self.s.type, override val t: self.t.type)
+        extends transformers.ConcreteTreeTransformer(s, t)
+      val postTransformer = new PostTransformer(self.s, self.t)
 
       val postCache: Map[Identifier, t.Lambda] = 
         posts.view.mapValues{ (v: s.Lambda) =>
@@ -217,7 +212,7 @@ trait MeasureInference
         case Some(post@t.Lambda(Seq(nlarg), nbody)) => 
           val newVd = t.ValDef.fresh("arg", original.returnType)
           val newMap: Map[t.ValDef, t.Expr] = Map((nlarg, newVd.toVariable))
-          val newNBody: t.Expr = t.exprOps.replaceFromSymbols(newMap, nbody)(t.convertToVal)
+          val newNBody: t.Expr = t.exprOps.replaceFromSymbols(newMap, nbody)(using t.convertToVal)
           val refinement = t.RefinementType(newVd, newNBody) 
           original.copy(returnType = refinement).copiedFrom(original)
         case None       => original
@@ -240,12 +235,11 @@ trait MeasureInference
 }
 
 object MeasureInference { self =>
-  def apply(tr: Trees)(implicit ctx: inox.Context): extraction.ExtractionPipeline {
+  def apply(tr: Trees)(using inox.Context): extraction.ExtractionPipeline {
     val s: tr.type
     val t: tr.type
-  } = new {
-    override val s: tr.type = tr
-    override val t: tr.type = tr
-    override val context = ctx
-  } with MeasureInference
+  } = {
+    class Impl(override val s: tr.type, override val t: tr.type) extends MeasureInference(s, t)
+    new Impl(tr, tr)
+  }
 }

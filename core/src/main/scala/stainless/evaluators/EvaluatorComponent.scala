@@ -30,14 +30,14 @@ object EvaluatorComponent extends Component { self =>
   override type Report = EvaluatorReport
   override type Analysis = EvaluatorAnalysis
 
-  override val lowering = inox.transformers.SymbolTransformer(new transformers.TreeTransformer {
-    val s: extraction.trees.type = extraction.trees
-    val t: extraction.trees.type = extraction.trees
-  })
-
-  override def run(pipeline: extraction.StainlessPipeline)(implicit ctx: inox.Context) = {
-    new EvaluatorRun(pipeline)
+  override val lowering = {
+    class LoweringImpl(override val s: extraction.trees.type, override val t: extraction.trees.type)
+      extends transformers.ConcreteTreeTransformer(s, t)
+    inox.transformers.SymbolTransformer(new LoweringImpl(extraction.trees, extraction.trees))
   }
+
+  override def run(pipeline: extraction.StainlessPipeline)(using inox.Context) =
+    new EvaluatorRun(pipeline)
 }
 
 object EvaluatorRun {
@@ -53,11 +53,14 @@ object EvaluatorRun {
   case class Result(fd: FunDef, status: FunctionStatus, time: Long)
 }
 
-class EvaluatorRun(override val pipeline: extraction.StainlessPipeline)
-                  (override implicit val context: inox.Context) extends {
-  override val component = EvaluatorComponent
-  override val trees: stainless.trees.type = stainless.trees
-} with ComponentRun {
+class EvaluatorRun private(override val component: EvaluatorComponent.type,
+                           override val trees: stainless.trees.type,
+                           override val pipeline: extraction.StainlessPipeline)
+                          (using override val context: inox.Context)
+  extends ComponentRun {
+
+  def this(pipeline: extraction.StainlessPipeline)(using inox.Context) =
+    this(EvaluatorComponent, stainless.trees, pipeline)
 
   import trees._
   import component.{Report, Analysis}
@@ -65,12 +68,12 @@ class EvaluatorRun(override val pipeline: extraction.StainlessPipeline)
 
   override def parse(json: Json): Report = EvaluatorReport.parse(json)
 
-  private implicit val debugSection = DebugSectionEvaluator
+  private given givenDebugSection: DebugSectionEvaluator.type = DebugSectionEvaluator
 
   override def createFilter = EvaluatorCheckFilter(trees, context)
 
   private[stainless] def execute(functions: Seq[Identifier], symbols: Symbols): Future[Analysis] = {
-    import context._
+    import context.{given, _}
 
     val p = inox.Program(trees)(symbols)
     import p.{symbols => _, _}

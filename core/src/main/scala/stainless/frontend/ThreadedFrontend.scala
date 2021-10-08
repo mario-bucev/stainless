@@ -11,7 +11,7 @@ package frontend
  * stopping or joining.
  */
 abstract class ThreadedFrontend(callback: CallBack, ctx: inox.Context) extends Frontend(callback) {
-  private implicit val debugSection = DebugSectionFrontend
+  private given givenDebugSection: DebugSectionFrontend.type = DebugSectionFrontend
 
   private var thread: Thread = _
   private val exceptions = new scala.collection.mutable.ListBuffer[Throwable]
