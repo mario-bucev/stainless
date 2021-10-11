@@ -6,7 +6,7 @@ import scala.language.implicitConversions
 import dotty.tools.dotc._
 import ast.tpd
 import ast.Trees._
-import core.Contexts._
+import core.Contexts.{Context => DottyContext}
 import core.Constants._
 import core.Names._
 import core.StdNames._
@@ -18,14 +18,14 @@ import core.Annotations._
 import scala.collection.mutable.{ Map => MutableMap }
 
 trait ASTExtractors {
+  val dottyCtx: DottyContext
+  import dottyCtx.given
 
-  protected val ctx: dotty.tools.dotc.core.Contexts.Context
-  import ctx.given
-
-  def classFromName(nameStr: String): ClassSymbol = ctx.requiredClass(typeName(nameStr))
-  def moduleFromName(nameStr: String): TermSymbol = ctx.requiredModule(typeName(nameStr))
+  def classFromName(nameStr: String): ClassSymbol = ??? // dottyContext.requiredClass(typeName(nameStr))
+  def moduleFromName(nameStr: String): TermSymbol = ??? // dottyContext.requiredModule(typeName(nameStr))
 
   def getAnnotations(sym: Symbol, ignoreOwner: Boolean = false): Seq[(String, Seq[tpd.Tree])] = {
+    /*
     val erased = if (sym.isEffectivelyErased) Seq(("ghost", Seq.empty)) else Seq()
     val inline = if (sym.annotations exists (_.symbol.fullName.toString == "scala.inline")) Seq(("inline", Seq.empty)) else Seq()
     val ownerSymbols = sym.maybeOwner.annotations.filter(annot =>
@@ -41,6 +41,8 @@ trait ASTExtractors {
       case (acc @ (keys, _), (key, _)) if keys contains key => acc
       case ((keys, seq), (key, args)) => (keys + key, seq :+ (key -> args))
     }._2
+    */
+    ???
   }
 
   // Well-known symbols that we match on
@@ -350,8 +352,14 @@ trait ASTExtractors {
 
     object ExLambda {
       def unapply(tree: tpd.Tree): Option[(Seq[tpd.ValDef], tpd.Tree)] = tree match {
-        case Block(Seq(dd @ DefDef(_, _, Seq(vparams), _, _)), ExUnwrapped(Closure(Nil, call, _))) if call.symbol == dd.symbol =>
-          Some((vparams, dd.rhs))
+        // In `dd`, `paramss` is a List[List[ValDef] | TypeDef]] to represent:
+        //   defName[T1, T2, ...](val x_11, x_12, ..)...(val x_n1, val x_n2, ...)
+        // If the DefDef in question has type parameters, then the first element of `paramss`
+        // is the list of type parameters, otherwise, `paramss` only contains the ValDefs
+        // Here, we are interested in only matching a `dd` of the form:
+        //   defName(val x_1, val x_2, ...)
+        case Block(Seq(dd @ DefDef(_, paramss@List(tpd.ValDefs(valDefs)), _, _)), ExUnwrapped(Closure(Nil, call, _))) if call.symbol == dd.symbol =>
+          Some((valDefs, dd.rhs))
         case _ => None
       }
     }
@@ -511,21 +519,17 @@ trait ASTExtractors {
 
     object ExFunctionDef {
       def unapply(tree: tpd.DefDef): Option[(Symbol, Seq[tpd.TypeDef], Seq[tpd.ValDef], Type, tpd.Tree)] = tree match {
-        case dd @ DefDef(name, tparams, vparamss, tpt, rhs) =>
-          if ((
-            name != nme.CONSTRUCTOR &&
-            !dd.symbol.is(Accessor) &&
-            !dd.symbol.is(Synthetic) &&
-            !dd.symbol.is(Label)
-          ) || (
-            (dd.symbol is Synthetic) &&
-            canExtractSynthetic(dd.symbol) &&
-            !(getAnnotations(tpt.symbol) exists (_._1 == "ignore"))
-          )) {
-            Some((dd.symbol, tparams, vparamss.flatten, tpt.tpe, dd.rhs))
-          } else {
-            None
-          }
+        case dd @ DefDef(name, _, tpt, rhs) if ((
+          name != nme.CONSTRUCTOR &&
+          !dd.symbol.is(Accessor) &&
+          !dd.symbol.is(Synthetic) &&
+          !dd.symbol.is(Label)
+        ) || (
+          (dd.symbol is Synthetic) &&
+          canExtractSynthetic(dd.symbol) &&
+          !(getAnnotations(tpt.symbol) exists (_._1 == "ignore"))
+        )) =>
+          Some((dd.symbol, dd.leadingTypeParams, dd.termParamss.flatten, tpt.tpe, dd.rhs))
 
         case _ => None
       }
@@ -559,22 +563,38 @@ trait ASTExtractors {
       }
     }
 
+    object ExDefDefSimple {
+      /**
+        * Matches against a simple `dd` that may have type parameter and has at most one ValDef clause.
+        * That is, `dd` is of the form:
+        *     ddName[T1, T2, ...](val x_1, val x_2, ...)
+        *           (may be empty)     (may be empty)
+        * and not of the general form:
+        *     ddName[T1, T2, ...](val x_11, val x_12, ...)(val x_21, val x_22, ...)(...)
+        */
+      def unapply(dd: tpd.DefDef): Option[(TermName, List[tpd.TypeDef], List[tpd.ValDef], Tree[Type], tpd.Tree)] = dd match {
+        case dd@DefDef(name, _, tpt, _) if (dd.termParamss.size <= 1) => // At most one ValDef clause
+          Some((name, dd.leadingTypeParams, dd.termParamss.flatten, tpt, dd.rhs))
+        case _ => None
+      }
+    }
+
     object ExFieldAccessorFunction {
       /** Matches the accessor function of a field */
       def unapply(dd: tpd.DefDef): Option[(Symbol, Type, Seq[tpd.ValDef], tpd.Tree)] = dd match {
-        case DefDef(name, tparams, vparamss, tpt, _) if(
-          vparamss.size <= 1 && name != nme.CONSTRUCTOR &&
+        case ExDefDefSimple(name, _, valDefs, tpt, _) if (
+          name != nme.CONSTRUCTOR &&
           (dd.symbol is Accessor) && !(dd.symbol is Lazy)
         ) =>
-          Some((dd.symbol, tpt.tpe, vparamss.flatten, dd.rhs))
+          Some((dd.symbol, tpt.tpe, valDefs, dd.rhs))
         case _ => None
       }
     }
 
     object ExLazyFieldAccessorFunction {
       def unapply(dd: tpd.DefDef): Option[(Symbol, Type, tpd.Tree)] = dd match {
-        case DefDef(name, tparams, vparamss, tpt, _) if(
-          vparamss.size <= 1 && name != nme.CONSTRUCTOR &&
+        case ExDefDefSimple(name, _, _, tpt, _) if(
+          name != nme.CONSTRUCTOR &&
           !(dd.symbol is Synthetic) && (dd.symbol is Accessor) && (dd.symbol is Lazy)
         ) =>
           Some((dd.symbol, tpt.tpe, dd.rhs))
@@ -721,7 +741,7 @@ trait ASTExtractors {
           def extract(t: tpd.Tree): Option[tpd.Tree] = t match {
             case Apply(ExSymbol("stainless", "proof" | "equations", "package$", "ProofOps$", "apply"), Seq(body)) => Some(body)
             case Block(Seq(v @ ValDef(_, _, _)), e) => extract(e).filter(_.symbol == v.symbol).map(_ => v.rhs)
-            case Inlined(_, members, last) => extract(Block(members, last))
+            case Inlined(_, members, last) => extract(tpd.Block(members, last))
             case _ => None
           }
           extract(rec).map(_ -> proof)
@@ -807,5 +827,4 @@ trait ASTExtractors {
       case _ => None
     }
   }
-
 }

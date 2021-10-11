@@ -355,29 +355,36 @@ lazy val `stainless-scalac-standalone` = (project in file("frontends") / "stainl
   )
   .dependsOn(`stainless-scalac`)
 
-// lazy val `stainless-dotty-frontend` = (project in file("frontends/dotty"))
-//   .settings(commonSettings)
-//   .settings(noPublishSettings)
-//   .settings(name := "stainless-dotty-frontend")
-//   .dependsOn(`stainless-core`)
-//   .settings(libraryDependencies += "ch.epfl.lamp" % dottyLibrary % dottyVersion % "provided")
+lazy val `stainless-dotty` = (project in file("frontends/dotty"))
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(commonSettings, commonFrontendSettings)
+  .settings(scriptSettings, assemblySettings)
+  .settings(noPublishSettings)
+  .settings(
+    name := "stainless-dotty",
+    frontendClass := "dotc.DottyCompiler",
+    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % "3.0.2" % "provided",
+    buildInfoKeys ++= Seq[BuildInfoKey]("useJavaClassPath" -> false),
+    // We include Scala library to be certain we also include scala-parser-combinators (which is not shipped with the Scala std library)
+    assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = true),
+    assembly / assemblyExcludedJars := {
+      val cp = (assembly / fullClasspath).value
+      // Don't include scalaz3 dependency because it is OS dependent
+      cp filter {_.data.getName.startsWith("scalaz3")}
+    },
+  )
+  .dependsOn(`stainless-core`)
+  .dependsOn(inox % "test->test;it->test,it")
+  .configs(IntegrationTest)
 
-// lazy val `stainless-dotty` = (project in file("frontends/stainless-dotty"))
-//   .enablePlugins(JavaAppPackaging)
-//   .enablePlugins(BuildInfoPlugin)
-//   .settings(commonSettings, commonFrontendSettings)
-//   .settings(artifactSettings, scriptSettings)
-//   .settings(noPublishSettings)
-//   .settings(
-//     name := "stainless-dotty",
-//     frontendClass := "dotc.DottyCompiler",
-//   )
-//   .dependsOn(inox % "test->test;it->test,it")
-//   .dependsOn(`stainless-dotty-frontend`)
-//   .aggregate(`stainless-dotty-frontend`)
-//   // Should truly depend on dotty, overriding the "provided" modifier above:
-//   .settings(libraryDependencies += "ch.epfl.lamp" % dottyLibrary % dottyVersion)
-//   .configs(IntegrationTest)
+lazy val `stainless-dotty-plugin` = (project in file("frontends") / "stainless-dotty-plugin")
+  .settings(artifactSettings, publishMavenSettings, assemblySettings)
+  .settings(
+    name := "stainless-dotty-plugin",
+    crossVersion := CrossVersion.full, // because compiler api is not binary compatible
+    Compile / packageBin := (`stainless-dotty` / Compile / assembly).value
+  )
 
 lazy val `sbt-stainless` = (project in file("sbt-plugin"))
   .enablePlugins(BuildInfoPlugin)
@@ -420,8 +427,8 @@ lazy val root = (project in file("."))
   .settings(
     Compile / sourcesInBase := false,
   )
-  .dependsOn(`stainless-scalac`, `stainless-library`/*, `stainless-dotty`*/, `sbt-stainless`)
-  .aggregate(`stainless-core`, `stainless-library`, `stainless-scalac`/*, `stainless-dotty`*/, `sbt-stainless`, `stainless-scalac-plugin`)
+  .dependsOn(`stainless-scalac`, `stainless-library`, `stainless-dotty`, `sbt-stainless`)
+  .aggregate(`stainless-core`, `stainless-library`, `stainless-scalac`, `stainless-dotty`, `sbt-stainless`, `stainless-scalac-plugin`, `stainless-dotty-plugin`)
 
 def commonPublishSettings = Seq(
   bintrayOrganization := Some("epfl-lara")
