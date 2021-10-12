@@ -36,10 +36,8 @@ class StainlessPlugin(val global: Global) extends Plugin {
     }
   }
 
-  val stainlessContext: inox.Context = {
-    given stainless.PlainTextReporter = new stainless.PlainTextReporter(Set.empty)
-    mainHelper.getConfigContext(inox.Options.empty)
-  }
+  val stainlessContext: inox.Context =
+    mainHelper.getConfigContext(inox.Options.empty)(using new stainless.PlainTextReporter(Set.empty))
 
   override val name: String = PluginName
   override val description: String = PluginDescription

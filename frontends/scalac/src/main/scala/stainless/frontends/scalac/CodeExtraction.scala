@@ -201,6 +201,7 @@ trait CodeExtraction extends ASTExtractors {
     Seq[xt.TypeDef],
     Option[Identifier]
   ) = {
+    given DefContext = DefContext()
     var imports   : Seq[xt.Import]    = Seq.empty
     var classes   : Seq[Identifier]   = Seq.empty
     var functions : Seq[Identifier]   = Seq.empty
@@ -260,7 +261,7 @@ trait CodeExtraction extends ASTExtractors {
         if  t.symbol.isSynthetic &&
             !canExtractSynthetic(t.symbol) &&
             name.toString == "apply" =>
-        extractType(tpt)(using DefContext()) match {
+        extractType(tpt) match {
           case xt.ClassType(cid, _) =>
             assert(companionOf.forall(_ != cid),
               s"Error during Stainless extraction, couldn't tie companion object to class: $cid"
@@ -275,21 +276,21 @@ trait CodeExtraction extends ASTExtractors {
         // ignore
 
       case md: ModuleDef if !md.symbol.isSynthetic && md.symbol.isCase =>
-        val (xcd, newFunctions, newTypeDefs) = extractClass(md)(using DefContext())
+        val (xcd, newFunctions, newTypeDefs) = extractClass(md)
         classes :+= xcd.id
         allClasses :+= xcd
         allFunctions ++= newFunctions
         allTypeDefs ++= newTypeDefs
 
       case cd: ClassDef =>
-        val (xcd, newFunctions, newTypeDefs) = extractClass(cd)(using DefContext())
+        val (xcd, newFunctions, newTypeDefs) = extractClass(cd)
         classes :+= xcd.id
         allClasses :+= xcd
         allFunctions ++= newFunctions
         allTypeDefs ++= newTypeDefs
 
       case dd @ ExFunctionDef(fsym, tparams, vparams, tpt, rhs) =>
-        val fd = extractFunction(fsym, tparams, vparams, rhs)(using DefContext())
+        val fd = extractFunction(fsym, tparams, vparams, rhs)
         functions :+= fd.id
         allFunctions :+= fd
 
@@ -297,22 +298,22 @@ trait CodeExtraction extends ASTExtractors {
         // Ignore @extern variables in static context
 
       case t @ ExFieldDef(fsym, _, rhs) =>
-        val fd = extractFunction(fsym, Seq.empty, Seq.empty, rhs)(using DefContext())
+        val fd = extractFunction(fsym, Seq.empty, Seq.empty, rhs)
         functions :+= fd.id
         allFunctions :+= fd
 
       case t @ ExLazyFieldDef(fsym, _, rhs) =>
-        val fd = extractFunction(fsym, Seq.empty, Seq.empty, rhs)(using DefContext())
+        val fd = extractFunction(fsym, Seq.empty, Seq.empty, rhs)
         functions :+= fd.id
         allFunctions :+= fd
 
       case t @ ExFieldAccessorFunction(fsym, _, vparams, rhs) =>
-        val fd = extractFunction(fsym, Seq.empty, vparams, rhs)(using DefContext())
+        val fd = extractFunction(fsym, Seq.empty, vparams, rhs)
         functions :+= fd.id
         allFunctions :+= fd
 
       case t @ ExLazyFieldAccessorFunction(fsym, _, rhs) =>
-        val fd = extractFunction(fsym, Seq.empty, Seq.empty, rhs)(using DefContext())
+        val fd = extractFunction(fsym, Seq.empty, Seq.empty, rhs)
         functions :+= fd.id
         allFunctions :+= fd
 
@@ -320,7 +321,7 @@ trait CodeExtraction extends ASTExtractors {
         // ignore
 
       case t: TypeDef if t.symbol.isAliasType =>
-        val td = extractTypeDef(t)(using DefContext())
+        val td = extractTypeDef(t)
         typeDefs :+= td.id
         allTypeDefs :+= td
 
