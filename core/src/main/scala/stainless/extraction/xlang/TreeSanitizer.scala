@@ -434,9 +434,11 @@ trait TreeSanitizer { self =>
         case desc =>
           val methods = desc.methods.map(symbols.getFunction)
           val fieldSymbols = desc.fields.map(symbolOf).toSet
-          val accessorSymbols = desc.fields.map { vd =>
+          // Accessor function symbols for fields
+          // Note that Scala 3 does not generate accessor function for fields while Scala 2 does.
+          val accessorSymbols = desc.fields.flatMap { vd =>
             val accessor = methods.find { fd => fd.isGetter && fd.isAccessor(vd.id) }
-            symbolOf(accessor.get) // Safe: All fields have accessors
+            accessor.map(symbolOf)
           }
 
           val allSymbols = fieldSymbols ++ accessorSymbols

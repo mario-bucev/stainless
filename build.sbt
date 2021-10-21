@@ -21,8 +21,6 @@ val isMac     = osInf.indexOf("Mac") >= 0
 val osName = if (isWindows) "win" else if (isMac) "mac" else "unix"
 val osArch = System.getProperty("sun.arch.data.model")
 
-val dottyLibrary = "dotty-compiler_2.12"
-val dottyVersion = "0.12.0-RC1-nonbootstrapped"
 val circeVersion = "0.14.1"
 
 lazy val nParallel = {
@@ -41,7 +39,7 @@ lazy val nParallel = {
 // Stainless itself uses Scala 3...
 val stainlessScalaVersion = "3.0.2"
 // ...whereas Stainless programs use Scala 2.13
-val stainlessProgScalaVersion = "2.13.6"
+val stainlessProgScalaVersion = "3.0.2"
 
 scalaVersion := stainlessScalaVersion
 
@@ -124,6 +122,7 @@ lazy val commonSettings: Seq[Setting[_]] = artifactSettings ++ Seq(
   run / javaOptions ++= Seq(
     "-Xss256M",
     "-Xms1024M",
+    "-XX:MaxMetaspaceSize=1G",
     "-XX:+UseCodeCacheFlushing",
     "-XX:ReservedCodeCacheSize=256M",
   ),
@@ -292,8 +291,9 @@ lazy val `stainless-library` = (project in file("frontends") / "library")
     name := "stainless-library",
     scalaVersion := stainlessProgScalaVersion,
     // don't publish binaries - stainless-library is only consumed as a sources component
-    packageBin / publishArtifact := false,
-    crossVersion := CrossVersion.binary
+//    packageBin / publishArtifact := false,
+    crossVersion := CrossVersion.binary,
+    Compile / scalaSource := baseDirectory.value / "stainless"
   )
 
 lazy val `stainless-algebra` = (project in file("frontends") / "algebra")
@@ -305,8 +305,9 @@ lazy val `stainless-algebra` = (project in file("frontends") / "algebra")
     scalaVersion := stainlessProgScalaVersion,
 
     // don't publish binaries - stainless-algebra is only consumed as a sources component
-    packageBin / publishArtifact := false,
-    crossVersion := CrossVersion.binary
+//    packageBin / publishArtifact := false,
+    crossVersion := CrossVersion.binary,
+    Compile / scalaSource := baseDirectory.value / "stainless"
   )
   .dependsOn(`stainless-library`)
 
@@ -319,7 +320,7 @@ lazy val `stainless-scalac` = (project in file("frontends") / "scalac")
   .settings(
     name := "stainless-scalac",
     frontendClass := "scalac.ScalaCompiler",
-    libraryDependencies += "org.scala-lang" % "scala-compiler" % stainlessProgScalaVersion,
+    libraryDependencies += "org.scala-lang" % "scala-compiler" % "2.13.6",
     buildInfoKeys ++= Seq[BuildInfoKey]("useJavaClassPath" -> false),
     // We include Scala library to be certain we also include scala-parser-combinators (which is not shipped with the Scala std library)
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = true),

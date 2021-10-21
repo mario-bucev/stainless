@@ -82,7 +82,7 @@ object StainlessPlugin extends sbt.AutoPlugin {
     inConfig(Compile)(compileSettings)            // overrides settings that are scoped (by sbt) at the `Compile` configuration
 
   private def stainlessModules: Def.Initialize[Seq[ModuleID]] = Def.setting {
-    val pluginRef  = "ch.epfl.lara" % s"stainless-scalac-plugin_$stainlessScalaVersion" % stainlessVersion.value
+    val pluginRef  = "ch.epfl.lara" % s"stainless-dotty-plugin_$stainlessScalaVersion" % stainlessVersion.value
     val libraryRef = "ch.epfl.lara" % s"stainless-library_$stainlessProgScalaBinaryVersion" % stainlessVersion.value
 
     val sourceDeps = (libraryRef +: stainlessExtraDeps.value).map { dep =>
@@ -198,10 +198,10 @@ object StainlessPlugin extends sbt.AutoPlugin {
           "-Yskip:xsbt-dependency,xsbt-api,xsbt-analyzer",
 
           // Here we tell the stainless plugin whether or not to enable verification
-          s"-P:stainless:verify:${stainlessEnabled.value}",
+//          s"-P:stainless:verify:${stainlessEnabled.value}",
 
           // For now we always enable ghost elimination
-          "-P:stainless:ghost-elim:true",
+//          "-P:stainless:ghost-elim:true",
         )
 
         // FIXME: Properly merge possibly duplicate scalac options

@@ -188,6 +188,7 @@ object ScalaCompiler {
   private def buildSettings(ctx: inox.Context): NSCSettings = {
     val settings = new NSCSettings
 
+    // TODO: Ensure we get the 2.13 library!!!
     // Attempt to find where the scala lib is.
     val scalaLib: String = Option(scala.Predef.getClass.getProtectionDomain.getCodeSource) map {
       _.getLocation.getPath

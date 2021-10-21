@@ -3,22 +3,27 @@
 package stainless
 package frontends.dotc
 
-import dotty.tools.dotc.*
-import core.Contexts.*
-import core.Phases.*
-import transform.*
+import dotty.tools.dotc._
+import plugins._
+import core.Contexts.{Context => DottyContext}
+import core.Phases._
+import transform._
 import ast.Trees.PackageDef
-import typer.*
+import typer._
 
 import extraction.xlang.{trees => xt}
 import frontend.{CallBack, Frontend, FrontendFactory, ThreadedFrontend}
 
-trait StainlessExtraction extends Phase {
-  val inoxCtx: inox.Context
-  val callback: CallBack
-  val cache: SymbolsContext
+class StainlessExtraction(val inoxCtx: inox.Context,
+                          val callback: CallBack,
+                          val cache: SymbolsContext) extends PluginPhase {
 
-  override def run(using ctx: Context): Unit = {
+  override val phaseName = "stainless"
+  override val runsAfter = Set(Pickler.name) // TODO: Was typer
+  override val runsBefore = Set(PatternMatcher.name)
+
+  // TODO: we are overriding MiniPhase#run that is defined as singletonGroup.run. Is this ok?
+  override def run(using ctx: DottyContext): Unit = {
     val extraction = new CodeExtraction(inoxCtx, cache)
     import extraction._
 
@@ -35,12 +40,11 @@ trait StainlessExtraction extends Phase {
         (FreshIdentifier(unit.source.file.name.replaceFirst("[.][^.]+$", "")), List.empty)
     }
 
-    val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs) = extraction.extractStatic(stats)
+    val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs, _) = extraction.extract(stats)
     assert(unitFunctions.isEmpty, "Packages shouldn't contain functions")
 
     val file = unit.source.file.absolute.path
-    // TODO
-    val isLibrary = false // Main.libraryFiles contains file
+    val isLibrary = stainless.Main.libraryFiles contains file
     val xtUnit = xt.UnitDef(id, imports, unitClasses, subs, !isLibrary)
 
     callback(file, xtUnit, classes, functions, typeDefs)

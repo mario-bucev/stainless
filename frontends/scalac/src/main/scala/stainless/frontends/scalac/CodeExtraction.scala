@@ -435,8 +435,8 @@ trait CodeExtraction extends ASTExtractors {
     }
 
     val hasExternFields = fields.exists(_.flags.contains(xt.Extern))
-
-    val defCtx = tpCtx.withNewVars((vds.map(_.symbol) zip fields.map(vd => () => vd.toVariable)).toMap)
+    // TODO: Does not seem to be necessary???
+    val defCtx = tpCtx //.withNewVars((vds.map(_.symbol) zip fields.map(vd => () => vd.toVariable)).toMap)
 
     var invariants: Seq[xt.Expr]     = Seq.empty
     var methods: Seq[xt.FunDef]      = Seq.empty
@@ -637,7 +637,7 @@ trait CodeExtraction extends ASTExtractors {
       .copy(tparams = dctx.tparams ++ (tparams zip ntparams))
       .copy(isExtern = dctx.isExtern || (flags contains xt.Extern))
 
-    lazy val retType = stainlessType(sym.info.finalResultType)(using nctx, sym.pos)
+    lazy val retType = stainlessType(sym.info.finalResultType)(using nctx, sym.pos) // TODO: Should be fctx?
 
     val (finalBody, returnType) = if (isAbstract) {
       flags :+= xt.IsAbstract
@@ -827,6 +827,7 @@ trait CodeExtraction extends ASTExtractors {
     } catch {
       case e: UnsupportedCodeException =>
         if (dctx.isExtern) {
+          println(e)
           xt.NoTree(extractType(tr)).setPos(tr.pos)
         } else {
           throw e
@@ -1488,7 +1489,7 @@ trait CodeExtraction extends ASTExtractors {
             case Seq() if sym.isParamAccessor =>
               xt.ClassSelector(extractTree(lhs), getIdentifier(sym)).setPos(c.pos)
             case _ =>
-              outOfSubsetError(tr, s"Unexpected call: $tr")
+              outOfSubsetError(tr, s"Unexpected call: $tr") // TODO: Peut arriver p.ex. this.state.=(arg) state est un field et une method...
           }
 
         case lct: xt.LocalClassType =>

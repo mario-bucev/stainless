@@ -144,6 +144,13 @@ class ExplicitNumericPromotionSuite extends AnyFunSuite with InputUtils {
        |} """.stripMargin
   )
 
+  val infact = List(
+    """case class SomeClass() {
+      |  def helloFriend(x: Int): Unit = {
+      |    assert(x == 123)
+      |  }
+      |}""".stripMargin)
+
   val ctx: inox.Context = stainless.TestContext.empty
   import ctx.given
   val (_, xlangProgram) = load(sources)
