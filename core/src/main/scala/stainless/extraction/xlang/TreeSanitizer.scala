@@ -358,6 +358,7 @@ trait TreeSanitizer { self =>
 
     private[this] def checkThisUsage(e: Expr): Unit = {
       e match {
+        case ClassSelector(Annotated(body, _), sel) => checkThisUsage(ClassSelector(body, sel))
         case ClassSelector(This(_), _)              => ()
         case LocalClassSelector(LocalThis(_), _, _) => ()
 
@@ -434,11 +435,9 @@ trait TreeSanitizer { self =>
         case desc =>
           val methods = desc.methods.map(symbols.getFunction)
           val fieldSymbols = desc.fields.map(symbolOf).toSet
-          // Accessor function symbols for fields
-          // Note that Scala 3 does not generate accessor function for fields while Scala 2 does.
-          val accessorSymbols = desc.fields.flatMap { vd =>
+          val accessorSymbols = desc.fields.map { vd =>
             val accessor = methods.find { fd => fd.isGetter && fd.isAccessor(vd.id) }
-            accessor.map(symbolOf)
+            symbolOf(accessor.get) // Safe: All fields have accessors
           }
 
           val allSymbols = fieldSymbols ++ accessorSymbols

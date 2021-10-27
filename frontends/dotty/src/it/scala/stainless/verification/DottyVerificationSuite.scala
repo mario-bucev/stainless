@@ -7,7 +7,7 @@ import org.scalatest._
 
 trait DottyVerificationSuite extends ComponentTestSuite {
 
-  val component = VerificationComponent
+  val component: VerificationComponent.type = VerificationComponent
 
   override def configurations = super.configurations.map {
     seq => optFailInvalid(true) +: seq
@@ -33,7 +33,7 @@ trait DottyVerificationSuite extends ComponentTestSuite {
     reporter.terminateIfError()
   }
 }
-
+/*
 class SMTZ3DottyVerificationSuite extends DottyVerificationSuite {
   override def configurations = super.configurations.map {
     seq => Seq(
@@ -44,3 +44,4 @@ class SMTZ3DottyVerificationSuite extends DottyVerificationSuite {
 
   def folder = "dotty-specific/valid"
 }
+*/

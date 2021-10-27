@@ -31,7 +31,7 @@ object TestContext {
     inox.Context(reporter, ctx.interruptManager, ctx.options, ctx.timers)
   }
 
-  def empty: inox.Context = apply(Options.empty)
+  def empty: inox.Context = debug() // apply(Options.empty)
 
 }
 

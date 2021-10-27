@@ -454,10 +454,13 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
   override protected def registerFunctions(symbols: t.Symbols, results: Seq[FunctionResult]): t.Symbols = {
     val (functions, locals) = results.unzip
 
+    val (localClasses, localMethods, localTypeDefs) = locals.flatten.unzip3
+    // TODO: No freshening because expressions such as field selection that are outside of the local class definition get invalidated
+    /*
     val (localClasses, localMethods, localTypeDefs) = locals.flatten.map {
       case (cd, methods, typeDefs) => t.exprOps.freshenClass(cd, methods, typeDefs)
     }.unzip3
-
+    */
     symbols
       .withClasses(localClasses)
       .withTypeDefs(localTypeDefs.flatten)

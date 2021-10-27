@@ -37,8 +37,10 @@ abstract class ExtractionSuite extends AnyFunSpec with inox.ResourceUtils with I
 
     describe(s"Program extraction in $dir") {
       val tryProgram = scala.util.Try(loadFiles(files)._2)
-
-      it("should be successful") { assert(tryProgram.isSuccess) }
+      val x = 3
+      it("should be successful") {
+        assert(tryProgram.isSuccess)
+      }
 
       if (tryProgram.isSuccess) {
         val program = tryProgram.get
