@@ -286,8 +286,8 @@ trait TreeDeconstructor extends methods.TreeDeconstructor { self =>
   protected val s: Trees
   protected val t: Trees
 
-  class TransformerImpl(override val s: self.s.type, override val t: self.t.type) extends ConcreteTreeTransformer(s, t)
-  val transformer = new TransformerImpl(self.s, self.t)
+  class DefaultTransformer(override val s: self.s.type, override val t: self.t.type) extends ConcreteTreeTransformer(s, t)
+  val transformer: TreeTransformer { val s: self.s.type; val t: self.t.type } = new DefaultTransformer(self.s, self.t)
 
   override def deconstruct(tpe: s.Type): Deconstructed[t.Type] = tpe match {
     case s.LocalClassType(id, tparams, tps, parents) =>
@@ -332,8 +332,8 @@ trait TreeDeconstructor extends methods.TreeDeconstructor { self =>
               currTparams map (tp => t.TypeParameterDef(tp.asInstanceOf[t.TypeParameter]).copiedFrom(tp)),
               currParents,
               currVs.map(_.toVal),
-              lcd.methods.map(fd => transformer.transform(fd)),     // FIXME
-              lcd.typeMembers.map(td => transformer.transform(td)), // FIXME
+              lcd.methods.map(fd => transformer.transform(fd)),
+              lcd.typeMembers.map(td => transformer.transform(td)),
               currFlags
             ).copiedFrom(lcd)
           }

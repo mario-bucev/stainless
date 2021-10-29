@@ -120,6 +120,8 @@ class TypeEncoding(override val s: Trees, override val t: Trees)
     case s.RealType() => C(real)(e)
     case s.StringType() => C(str)(e)
     case s.UnitType() => let(("u" :: t.UnitType()).copiedFrom(e), e) { _ => t.ADT(unit, Seq(), Seq()).copiedFrom(e) }
+    case _ =>
+      ???
   }).copiedFrom(e)
 
   private[this] def unwrap(e: t.Expr, tpe: s.Type)(using Scope): t.Expr = (tpe match {
