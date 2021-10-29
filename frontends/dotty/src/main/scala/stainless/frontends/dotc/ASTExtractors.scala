@@ -10,6 +10,7 @@ import core.Contexts.{NoContext, Context as DottyContext}
 import core.NameKinds
 import core.Constants.*
 import core.Names.*
+import core.NameOps.*
 import core.StdNames.*
 import core.Symbols.*
 import core.Types.*
@@ -191,8 +192,8 @@ trait ASTExtractors {
   def isArrayClassSym(sym: Symbol): Boolean = sym == arraySym
 
   def hasIntType(t: tpd.Tree) = {
-    val tpe = t.tpe.widen
-    tpe =:= defn.IntClass.info
+    // val tpe = t.tpe.widen
+    t.tpe frozen_<:< defn.IntClass.info
   }
 
   def hasBigIntType(t: tpd.Tree) = isBigIntSym(t.tpe.typeSymbol)
@@ -202,13 +203,13 @@ trait ASTExtractors {
   // TODO: Verify these
   private lazy val bvtypes = Set(defn.ByteType, defn.ShortType, defn.IntType, defn.LongType)
 
-  def hasBVType(t: tpd.Tree) = bvtypes.exists(_ =:= t.tpe.widen)
+  def hasBVType(t: tpd.Tree) = bvtypes.exists(bv => t.tpe/*.widen*/ frozen_<:< bv)
 
   def hasNumericType(t: tpd.Tree): Boolean = hasBigIntType(t) || hasBVType(t) || hasRealType(t)
 
   def hasRealType(t: tpd.Tree) = isRealSym(t.tpe.typeSymbol)
 
-  def hasBooleanType(t: tpd.Tree) = t.tpe.widen =:= defn.BooleanType
+  def hasBooleanType(t: tpd.Tree) = t.tpe/*.widen*/ frozen_<:< defn.BooleanType
 
   def isDefaultGetter(sym: Symbol) = {
     (sym is Synthetic) && sym.name.isTermName && sym.name.toTermName.toString.contains("$default$")
@@ -841,18 +842,34 @@ trait ASTExtractors {
         case _ => None
       }
     }
-//
-//    object ExFieldAccessorFunction {
-//      /** Matches the accessor function of a field */
-//      def unapply(dd: tpd.DefDef): Option[(Symbol, Type, Seq[tpd.ValDef], tpd.Tree)] = dd match {
-//        case ExDefDefSimple(name, _, valDefs, tpt, _) if (
-//          name != nme.CONSTRUCTOR &&
-//          (dd.symbol is Accessor) && !(dd.symbol is Lazy)
-//        ) =>
-//          Some((dd.symbol, tpt.tpe, valDefs, dd.rhs))
-//        case _ => None
-//      }
-//    }
+
+    // TODO: il faut spécifier que "Mutable fields in traits or abstract classes cannot have default values"
+    // TODO: quid d'une classe qui a une var qui n'est pas ctor-field? dans ce cas, on aura !isCtorField et pas de rhs!!! cela va etre traité comme setter abstrait...
+    //    aparamment, leur RHS est ()
+    object ExFieldAccessorFunction {
+      /** Matches the accessor function of a non-ctor field */
+      def unapply(dd: tpd.DefDef): Option[(Symbol, Type, tpd.ValDef, tpd.Tree)] = dd match {
+        case ExDefDefSimple(name, _, List(param), tpt, _) if (
+          name.isSetterName &&
+          (dd.symbol is Accessor) && !(dd.symbol is Lazy)
+        ) =>
+          val underlying = dd.symbol.underlyingSymbol
+          val isCtorField = (underlying is ParamAccessor) || (underlying is CaseAccessor)
+          val rhs =
+            if (isCtorField && dd.rhs.isEmpty) {
+              // tpd.Ident(underlying.termRef)
+              val cls = underlying.owner.asClass
+              val fieldSel = tpd.Select(tpd.This(cls), underlying.name)
+              val paramIdent = tpd.Ident(param.symbol.termRef)
+              tpd.Assign(fieldSel, paramIdent)
+            }
+            else dd.rhs
+          Some((dd.symbol, tpt.tpe, param, rhs))
+//          if ((underlying is ParamAccessor) || (underlying is CaseAccessor)) None
+//          else Some((dd.symbol, tpt.tpe, param, dd.rhs))
+        case _ => None
+      }
+    }
 //
 //    object ExLazyFieldAccessorFunction {
 //      def unapply(dd: tpd.DefDef): Option[(Symbol, Type, tpd.Tree)] = dd match {
@@ -866,7 +883,7 @@ trait ASTExtractors {
 //    }
 
     // TODO: Re-check this
-    object ExFieldAssign {
+    object ExAssign {
       def unapply(tree: tpd.Assign): Option[(Symbol, tpd.Tree, tpd.Tree)] = tree match {
         // case Assign(sel@Select(This(_), v), rhs) => Some((sel.symbol, sel, rhs))
         case Assign(sel@Select(lhs, _), rhs) => Some((sel.symbol, lhs, rhs))
@@ -1254,7 +1271,7 @@ trait ASTExtractors {
 
     object ExFreshCopyExpression {
       def unapply(tree: tpd.Apply) : Option[tpd.Tree] = tree match {
-        case Apply(TypeApply(ExSymbol("stainless", "lang$", "freshCopy"), List(_)), List(arg)) =>
+        case Apply(TypeApply(ExSymbol("stainless", "lang", "package$", "freshCopy"), List(_)), List(arg)) =>
           Some(arg)
         case _ =>
           None
@@ -1516,6 +1533,16 @@ trait ASTExtractors {
           TypeApply(Select(Apply(ExSymbol("scala", "Predef$", s), List(lhs)), ExNamed("updated")), _),
           List(index, value)), List(Apply(_, _))) if s.toString contains "Array" =>
           Some((lhs, index, value))
+
+        case Apply(
+          Select(
+            Apply(
+              TypeApply(ExSymbol("stainless", "lang", "package$", "ArrayUpdating"), tpe :: Nil),
+              array :: Nil
+            ),
+            ExNamed("updated")
+          ), index :: value :: Nil) =>
+          Some((array, index, value))
 
         case _ => None
       }

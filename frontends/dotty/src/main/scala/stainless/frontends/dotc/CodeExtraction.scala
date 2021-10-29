@@ -3,25 +3,25 @@
 package stainless
 package frontends.dotc
 
-import dotty.tools.dotc._
-import dotty.tools.dotc.transform.SymUtils._
+import dotty.tools.dotc.*
+import dotty.tools.dotc.transform.SymUtils.*
 import ast.tpd
 import ast.untpd
-import ast.Trees._
+import ast.Trees.*
 import core.Contexts
-import core.Contexts.{Context => DottyContext}
-import core.Names._
-import core.StdNames._
-import core.Symbols._
-import core.Types._
-import core.Flags._
+import core.Contexts.Context as DottyContext
+import core.Names.*
+import core.StdNames.*
+import core.Symbols.*
+import core.Types.*
+import core.Flags.*
 import core.NameKinds
 import common.ClassDefs
-import util.{SourcePosition, NoSourcePosition}
+import util.{NoSourcePosition, SourcePosition}
 import stainless.ast.SymbolIdentifier
-import extraction.xlang.{trees => xt}
+import extraction.xlang.trees as xt
 
-import scala.collection.mutable.{ Map => MutableMap }
+import scala.collection.mutable.Map as MutableMap
 import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
 
@@ -646,6 +646,10 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         // TODO: Are we guarenteed to have vd.rhs = EmptyTree?
         methods :+= extractFunction(sym, vd, Seq.empty, Seq.empty, tpd.EmptyTree)(using defCtx)
 
+      // FIXME
+      case t @ ExFieldAccessorFunction(sym, _, vparam, rhs) =>
+        methods :+= extractFunction(sym, t, Seq.empty, List(vparam), rhs)(using defCtx)
+
       case td @ TypeDef(_, _) if !td.isClassDef =>
         typeMembers :+= extractTypeDef(td)(using defCtx)
 
@@ -656,7 +660,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         val fd = extractFunction(vd.symbol, vd, Seq.empty, Seq.empty, tpd.Ident(vd.tpe.asInstanceOf[TermRef]))(using defCtx)
         // We furthermore artificially add an IsAccessor flag to inform that this function is an accessor fn.
         // TODO: Check this
-        methods :+= fd // fd.copy(flags = fd.flags :+ xt.IsAccessor(Some(getIdentifier(vd.symbol))))
+        methods :+= fd // .copy(flags = fd.flags :+ xt.IsAccessor(Some(getIdentifier(vd.symbol))))
 
       case d if d.symbol is Synthetic =>
         // ignore
@@ -754,6 +758,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
 
     val id = getIdentifier(sym)
     val isAbstract = rhs == tpd.EmptyTree
+    val isFld = sym.isField
     val isCtorField = sym.isField && ((sym is ParamAccessor) || (sym is CaseAccessor))
     val isNonCtorField = sym.isField && !(sym is ParamAccessor) && !(sym is CaseAccessor)
     // TODO: There are some differences with Scalac
@@ -765,8 +770,11 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
       (if (!isAbstract && (isNonCtorField || (sym is Lazy))) Seq(xt.IsField(sym is Lazy)) else Seq()) ++
       // TODO: check this one
       (if (isDefaultGetter(sym) || isCopyMethod(sym)) Seq(xt.Synthetic, xt.Inline) else Seq()) ++
+//      (if ((/*isAbstract && */sym.isField) || (!(sym is Lazy) && (sym is Accessor)) || isCtorField) // TODO: isAbstract commenté, car on aimerait avoir val x = 123 (se trouvant ds un trait) marqué comme accessor
+//        Seq(xt.IsAccessor(Option(getIdentifier(sym.underlyingSymbol)).filterNot(_ => isAbstract)))
       // TODO: check this one
-      (if ((isAbstract && isNonCtorField) || (!(sym is Lazy) && (sym is Accessor)) || isCtorField)
+      // TODO: This version makes FreshCopy fail, because val o does not get annotated @accessor (it needs @field and @accessor?????)
+      (if ((isAbstract && sym.isField) || (!(sym is Lazy) && (sym is Accessor)) || isCtorField)
         Seq(xt.IsAccessor(Option(getIdentifier(sym.underlyingSymbol)).filterNot(_ => isAbstract)))
       /*
       // TODO: What should we do with this xt.IsField ?
@@ -778,6 +786,10 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         Seq(xt.IsAccessor(Option(getIdentifier(sym.underlyingSymbol)).filterNot(_ => isAbstract)))
       */
       else Seq())
+
+//    if (sym.isField && !isAbstract && !((!(sym is Lazy) && (sym is Accessor)) || isCtorField)) {
+//      println("plop")
+//    }
 
     // @cCode.drop implies @extern
     if (flags.exists(_.name == "cCode.drop"))
@@ -1416,33 +1428,37 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         }
       }
 
-    case a @ ExFieldAssign(sym, lhs, rhs) =>
-      // TODO: Review
-      // TODO: Review
-      // TODO: Review
+    // TODO: Review
+    // TODO: Review
+    // TODO: Review
+    case a @ ExAssign(sym, lhs, rhs) =>
       import dotty.tools.dotc.core.NameOps._
-      val fieldName = sym.underlyingSymbol.name.asTermName.setterName
-      val d = sym.owner.info.decl(fieldName)
-      def setter = d.suchThat(_.info.firstParamTypes.nonEmpty).symbol
+      // TODO: "standardize" what a "true field" means
+      val isTrueField = (sym is CaseAccessor) || (sym is ParamAccessor)
+      if (isTrueField) {
+        xt.FieldAssignment(extractTree(lhs), getIdentifier(sym), extractTree(rhs))
+      } else {
+        val setterName = sym.underlyingSymbol.name.asTermName.setterName
+        val d = sym.owner.info.decl(setterName)
+        val setterSymbol = d.suchThat(_.info.firstParamTypes.nonEmpty).symbol
 
-      val res = xt.FieldAssignment(extractTree(lhs), getIdentifier(sym), extractTree(rhs))
-      res
-      /*extractType(lhs)(using dctx.setResolveTypes(true)) match {
-        case ct: xt.ClassType =>
-          xt.MethodInvocation(extractTree(lhs), getIdentifier(setter), Seq.empty, Seq(extractTree(rhs))).setPos(a.sourcePos)
+        extractType(lhs)(using dctx.setResolveTypes(true)) match {
+          case ct: xt.ClassType =>
+            xt.MethodInvocation(extractTree(lhs), getIdentifier(setterSymbol), Seq.empty, Seq(extractTree(rhs))).setPos(a.sourcePos)
 
-        case lct: xt.LocalClassType =>
-          val lcd = dctx.localClasses(lct.id)
-          val id = getIdentifier(setter)
-          val funType = xt.FunctionType(Seq(extractType(rhs)), xt.UnitType())
-          xt.LocalMethodInvocation(
-            extractTree(lhs),
-            xt.ValDef(id, funType).toVariable,
-            Seq.empty,
-            Seq.empty,
-            Seq(extractTree(rhs))
-          ).setPos(a.sourcePos)
-      }*/
+          case lct: xt.LocalClassType =>
+            val lcd = dctx.localClasses(lct.id)
+            val id = getIdentifier(setterSymbol)
+            val funType = xt.FunctionType(Seq(extractType(rhs)), xt.UnitType())
+            xt.LocalMethodInvocation(
+              extractTree(lhs),
+              xt.ValDef(id, funType).toVariable,
+              Seq.empty,
+              Seq.empty,
+              Seq(extractTree(rhs))
+            ).setPos(a.sourcePos)
+        }
+      }
 
     case wh @ ExWhile(cond, body, invOpt, weakInvOpt, inline, opaque) =>
       val inlineFlag = if (inline) Some(xt.InlineOnce) else None

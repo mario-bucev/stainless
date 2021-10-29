@@ -125,7 +125,7 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
     ) extends PathLike[Context] {
 
       /** Map each closed over field and parameters to the appropriate reference */
-      def toScope: Map[Identifier, Expr] = {
+      def toScope: Map[Identifier, Expr] = { // TODO: A voir si on doit pas faire old -> freshen vd
         val fields = for {
           cd    <- currentClass.toSeq
           field <- cd.fields
@@ -353,7 +353,7 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
 
     /** Lift the local class to the top, taking into account the current context and path */
     def lift(lcd: LocalClassDef, context: Context): ClassSubst = {
-      val pathCondition = pathToClause(context.path, lcd)
+      val pathCondition = pathToClause(context.path, lcd) // TODO
 
       // Compute the variables, type parameters, and outer references being closed over by the local class.
       val freeVars       = (exprOps.freeVariablesOf(lcd) ++ exprOps.variablesOf(pathCondition)).toSeq.sortBy(_.id.name)
@@ -363,7 +363,9 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
 
       // New necessary fields and type parameters
       val newTypeParams  = freeTypeParams.map(TypeParameterDef(_))
-      val freeVarFields  = freeVars.map(_.toVal)
+      val newVarFields  = freeVars.map(_.toVal)
+//      val newTypeParams  = freeTypeParams.map(tp => TypeParameterDef(tp.freshen))
+//      val newVarFields  = freeVars.map(_.toVal.freshen)
       val outerRefFields = freeOuterRefs.map { r =>
         ValDef(FreshIdentifier(s"outer${r.ct.id.name}"), context.toGlobalType(r.ct)).setPos(lcd.getPos)
       }
@@ -376,7 +378,7 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
         lcd.id,
         lcd.tparams ++ newTypeParams,
         parents,
-        lcd.fields ++ freeVarFields ++ outerRefFields,
+        lcd.fields ++ newVarFields ++ outerRefFields,
         lcd.flags
       ).copiedFrom(lcd)
 
@@ -386,7 +388,7 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
       val classType = ClassType(lcd.id, cd.typeArgs)
 
       // Map each free variable to the corresponding field selector
-      val freeVarsMap = freeVars.zip(freeVarFields).map { case (v, vd) =>
+      val freeVarsMap = freeVars.zip(newVarFields).map { case (v, vd) =>
         v -> ClassSelector(This(classType).copiedFrom(v), vd.id).copiedFrom(v)
       }.toMap
 
@@ -399,6 +401,7 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
         * and to supply the proper arguments when constructing an instance of its own class.
         */
       def liftMethod(fd: LocalMethodDef): FunDef = {
+        // TODO: What about type params???
         val body = exprOps.preMap {
           case v: Variable if freeVarsMap contains v =>
             Some(freeVarsMap(v))
@@ -434,6 +437,8 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
         typeMembers,
         freeTypeParams,
         freeVars.map(_.toVal),
+//        newTypeParams.map(_.tp),
+//        newVarFields,
         outerRefFields,
         classType
       )
@@ -452,19 +457,65 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
   }
 
   override protected def registerFunctions(symbols: t.Symbols, results: Seq[FunctionResult]): t.Symbols = {
-    val (functions, locals) = results.unzip
+    extension [A, B, C, D](s: Seq[(A, B, C, D)]) {
+      def unzip4: (Seq[A], Seq[B], Seq[C], Seq[D]) = (s.map(_._1), s.map(_._2), s.map(_._3), s.map(_._4))
+    }
 
-    val (localClasses, localMethods, localTypeDefs) = locals.flatten.unzip3
-    // TODO: No freshening because expressions such as field selection that are outside of the local class definition get invalidated
+    def freshenClasses(enclosingFn: t.FunDef, locals: Seq[(t.ClassDef, Seq[t.FunDef], Seq[t.TypeDef])]): (t.FunDef, Seq[t.ClassDef], Seq[t.FunDef], Seq[t.TypeDef]) = {
+      val allCDs = locals.map(_._1)
+      val allMeths = locals.flatMap(_._2)
+      val allTDs = locals.flatMap(_._3)
+      allCDs.foldLeft((enclosingFn, Seq.empty[t.ClassDef], allMeths, allTDs)) {
+        case ((enclosingFnAcc, cdsAcc, methsAcc, tdsAcc), cd) =>
+          val (newEnclosingFn, newCd, newMeths, newTds) = t.exprOps.freshenClass(enclosingFnAcc, cd, methsAcc, tdsAcc)
+          (newEnclosingFn, cdsAcc :+ newCd, newMeths, newTds)
+      }
+    }
+
+    val owo = results.find(_._1.id.toString == "foo")
+    val (functions, localClasses0, localMethods0, localTypeDefs0) = results.map(freshenClasses.tupled).unzip4
+    val localClasses = localClasses0.flatten
+    val localMethods = localMethods0.flatten
+    val localTypeDefs = localTypeDefs0.flatten
+    symbols
+      .withClasses(localClasses)
+      .withTypeDefs(localTypeDefs)
+      .withFunctions(functions ++ localMethods)
     /*
-    val (localClasses, localMethods, localTypeDefs) = locals.flatten.map {
-      case (cd, methods, typeDefs) => t.exprOps.freshenClass(cd, methods, typeDefs)
-    }.unzip3
+//    val (functions, locals) = results.unzip
+
+//    val (localClasses, localMethods, localTypeDefs) = locals.flatten.unzip3
+    val wot = results.find(_._1.id.toString == "foo")
+
+//    val (localClasses, localMethods, localTypeDefs) = locals.flatten.map {
+//      case (cd, methods, typeDefs) => t.exprOps.freshenClass(cd, methods, typeDefs)
+//    }.unzip3
+
+//    val (freshendLocalClasses, freshendLocalMethods, freshendLocalTypeDefs) = locals.flatten.map {
+//      case (cd, methods, typeDefs) => t.exprOps.freshenClass(cd, methods, typeDefs)
+//    }.unzip3
+    // type FunctionResult = (t.FunDef, Seq[(t.ClassDef, Seq[t.FunDef], Seq[t.TypeDef])])
+    val (functions, freshenedLocals) = results.map {
+      case (enclosingFn, locals) =>
+        t.exprOps.freshenClasses(enclosingFn, locals)
+    }.unzip
+    val (localClasses, localMethods, localTypeDefs) = freshenedLocals.flatten.unzip3
+    val owo = fns.find(_.id.toString == "foo")
     */
+/*
+    val (functions, locals) = results.unzip
+    val (localClasses, localMethods, localTypeDefs) = locals.flatten.map {
+      case (cd, methods, typeDefs) =>
+        val (_, a, b, c) = t.exprOps.freshenClass(functions.head, cd, methods, typeDefs)
+        (a, b, c)
+    }.unzip3
+*/
+    /*
     symbols
       .withClasses(localClasses)
       .withTypeDefs(localTypeDefs.flatten)
       .withFunctions(functions ++ localMethods.flatten)
+    */
   }
 
   override protected def extractClass(context: TransformerContext, cd: s.ClassDef): t.ClassDef = {

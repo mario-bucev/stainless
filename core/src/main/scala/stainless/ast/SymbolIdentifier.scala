@@ -25,7 +25,14 @@ object Symbol {
 }
 
 class SymbolIdentifier private[stainless](id: Identifier, val symbol: Symbol)
-  extends Identifier(id.name, id.globalId, id.id, alwaysShowUniqueID = false)
+  extends Identifier(id.name, id.globalId, id.id, alwaysShowUniqueID = false) {
+
+  override def freshen: SymbolIdentifier = {
+    val newId = id.freshen
+    val newSymbol = Symbol(symbol.name)
+    new SymbolIdentifier(newId, newSymbol)
+  }
+}
 
 object SymbolIdentifier {
   def apply(name: String): SymbolIdentifier = {
