@@ -101,7 +101,7 @@ trait Trees extends methods.Trees with Definitions with Types { self =>
   }
 
   override val exprOps: ExprOps { val trees: self.type } = {
-    class ExprOpsImpl(override val trees: self.type) extends ExprOps(trees)
+    class ExprOpsImpl(override val trees: self.type) extends innerclasses.ExprOps(trees)
     new ExprOpsImpl(self)
   }
 

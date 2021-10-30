@@ -646,7 +646,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         // TODO: Are we guarenteed to have vd.rhs = EmptyTree?
         methods :+= extractFunction(sym, vd, Seq.empty, Seq.empty, tpd.EmptyTree)(using defCtx)
 
-      // FIXME
+      // FIXME: this is setter thing
       case t @ ExFieldAccessorFunction(sym, _, vparam, rhs) =>
         methods :+= extractFunction(sym, t, Seq.empty, List(vparam), rhs)(using defCtx)
 
@@ -737,7 +737,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
     val extparams = typeParamSymbols(tparams)
     val ntparams = typeParams.getOrElse(extractTypeParams(extparams))
 
-    val tctx = dctx.copy(tparams = dctx.tparams ++ (extparams zip ntparams).toMap, resolveTypes = true) // TODO: No resolvetypes in Scalac
+    val tctx = dctx.copy(tparams = dctx.tparams ++ (extparams zip ntparams).toMap/*, resolveTypes = true*/) // TODO: No resolvetypes in Scalac
 
     // TODO: There are some differences with Scalac (vdefs instead of sym.info.paramss)
     val (newParams, nctx) = vparams.foldLeft((Seq.empty[xt.ValDef], tctx)) {
@@ -2366,6 +2366,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
   }
 
   // TODO: Review
+  // TODO: Do not dealias type members
   private def extractType(tpt: Type)(using dctx: DefContext, pos: SourcePosition, cds: ClassDefs): xt.Type = /*etCache.getOrElseUpdate((tpt -> dctx), */{
     val x = 3123
     val res = (tpt match {
@@ -2478,6 +2479,32 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
           case Some(lcd) => extractLocalClassType(tt, lcd.id, args map extractType)
           case None => xt.ClassType(id, args map extractType)
         }
+      /*
+      // TODO: review
+      case tr@TypeRef(prefix, _) if tr.symbol.isAbstractOrAliasType || tr.symbol.isOpaqueAlias =>
+        val useTypeApply = prefix match {
+          case ThisType(nt: NamedType) => nt.symbol.isClass // We do not want to dealias type member within classes, even if they are an alias of another type
+          case _ => !dctx.resolveTypes
+        }
+        if (useTypeApply) {
+          val selector = extractPrefix(prefix)
+          xt.TypeApply(xt.TypeSelect(selector, getIdentifier(tr.symbol)), Seq.empty)
+        } else {
+          extractType(tr.widenDealias)(using dctx.setResolveTypes(tr != tr.widenDealias), pos)
+        }
+
+      case at@AppliedType(tr@TypeRef(prefix, _), args) if tr.symbol.isAbstractOrAliasType || tr.symbol.isOpaqueAlias =>
+        val useTypeApply = prefix match {
+          case ThisType(nt: NamedType) => nt.symbol.isClass
+          case _ => !dctx.resolveTypes
+        }
+        if (useTypeApply) {
+          val selector = extractPrefix(prefix)
+          xt.TypeApply(xt.TypeSelect(selector, getIdentifier(tr.symbol)), args map extractType)
+        } else {
+          extractType(at.derivedAppliedType(tr.widenDealias, args))(using dctx.setResolveTypes(tr != tr.widenDealias), pos)
+        }
+      */
 
       case tr: TypeRef if dctx.resolveTypes && tr.symbol.isAbstractOrAliasType =>
         // TODO: is widening desired?
@@ -2499,6 +2526,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
       case AppliedType(tr @ TypeRef(prefix, _), args) if tr.symbol.isAbstractOrAliasType || tr.symbol.isOpaqueAlias =>
         val selector = extractPrefix(prefix)
         xt.TypeApply(xt.TypeSelect(selector, getIdentifier(tr.symbol)), args map extractType)
+
 
       /*
       // superseded by extractPrefix thing

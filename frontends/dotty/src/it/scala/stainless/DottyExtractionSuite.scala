@@ -4,29 +4,22 @@ package stainless
 
 class DottyExtractionSuite extends ExtractionSuite {
 
-//  testExtractAll("verification/valid")
-//  testExtractAll("verification/invalid")
-//  testExtractAll("verification/unchecked")
-//
-//  testExtractAll("imperative/valid")
-//  testExtractAll("imperative/invalid")
-//
-//  testExtractAll("termination/valid")
-//  testExtractAll("termination/looping")
-
   testExtractAll("extraction/valid")
-/* TODO
-  testExtractAll("extraction/valid",
-    "extraction/valid/AccessorFlags.scala",
-    "extraction/valid/GhostCaseClass.scala",
-    "extraction/valid/GhostMethods.scala",
-    "extraction/valid/GhostEffect3.scala",
-    "extraction/valid/GhostFlow1.scala",
-    "extraction/valid/GhostFlow2.scala",
-    "extraction/valid/GhostFlow3.scala",
-  )
-*/
+  // TODO: Be sure they are rejected for good reasons
+  // testRejectAll("extraction/invalid")
 
+  testExtractAll("verification/valid")
+  testExtractAll("verification/invalid")
+  testExtractAll("verification/unchecked")
+
+  testExtractAll("imperative/valid")
+  testExtractAll("imperative/invalid")
+
+  testExtractAll("termination/valid")
+  testExtractAll("termination/looping")
+
+
+  // TODO: Be sure they are rejected for good reasons
   /*
   testRejectAll("extraction/invalid",
     "extraction/invalid/TypeMember.scala",

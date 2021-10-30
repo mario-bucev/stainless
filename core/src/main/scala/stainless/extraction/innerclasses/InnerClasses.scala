@@ -406,6 +406,14 @@ class InnerClasses(override val s: Trees, override val t: methods.Trees)
 //      val newTypeParams  = freeTypeParams.map(tp => TypeParameterDef(tp))
 
       class TyMap(override val s: self.s.type, override val t: self.s.type) extends ConcreteTreeTransformer(s, t) { slf =>
+        override def transform(e: slf.s.Expr): slf.t.Expr = e match {
+          // We need to explicitly transform LetClass to ensure we go through in each local methods
+          // because the deconstructor of LetClass does not deconstruct local methods.
+          case LetClass(classes, body) =>
+            LetClass(classes.map(transform), transform(body))
+          case e =>
+            super.transform(e)
+        }
         override def transform(ty: slf.s.Type): slf.t.Type = ty match {
           case t: TypeParameter if freeTypeParams.indexOf(t) >= 0 =>
             newTypeParams(freeTypeParams.indexOf(t)).tp
