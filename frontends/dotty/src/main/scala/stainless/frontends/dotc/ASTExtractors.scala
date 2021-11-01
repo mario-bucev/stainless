@@ -468,7 +468,17 @@ trait ASTExtractors {
       import tpd.TreeOps
       import transform.ExplicitOuter
 
-      def unapply(tree: tpd.Tree)(using cds: ClassDefs): Option[tpd.Tree] = tree match {
+      def unapply(tree: tpd.Tree)(using cds: ClassDefs): Option[(tpd.Tree, Symbol, Seq[tpd.Tree], Seq[tpd.Tree])] = tree match {
+        case c@ExCall(None, sym, tps, thiss :: args) if (sym.name is NameKinds.ExtMethName) =>
+          val origClsSym = sym.denot.owner.denot.companionClass
+          val origClsDef = cds.defs.find(_.symbol eq origClsSym).get
+          val origMethDef = origClsDef.rhs.asInstanceOf[tpd.Template].body.collectFirst {
+            case dd@DefDef(nme, _, _, _) if nme eq sym.name.toTermName.underlying => dd
+          }.get
+          val origNbTps = origMethDef.leadingTypeParams.size
+          val origNbArgs = origMethDef.termParamss.flatten.size
+          Some(thiss, origMethDef.symbol, tps.take(origNbTps), args)
+
         // TODO: method nonEmpty$extension, its symbol is not tagged as an extension method (it's the impl. after all?)
         // TODO: Why ExtMethName and not UniqueExtMethName ??
         // TODO: Also inlines ensuring & al...

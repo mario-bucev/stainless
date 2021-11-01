@@ -19,7 +19,8 @@ class DottyCompiler(ctx: inox.Context, callback: CallBack, cache: SymbolsContext
   override def phases: List[List[Phase]] = {
     val allOrigPhases = super.phases
     val stainless = new StainlessExtraction(ctx, callback, cache)
-    Plugins.schedule(allOrigPhases, List(stainless))
+    val ph = Plugins.schedule(allOrigPhases, List(stainless))
+    ph
   }
 }
 
