@@ -110,8 +110,10 @@ abstract class ExtractionSuite extends AnyFunSpec with inox.ResourceUtils with I
 
       it("should fail") {
         tryPrograms foreach { case (f, tp) => tp match {
-          case Failure(e) => assert(true)
-          case Success(n) => assert(n > 0, s"$f was successfully extracted")
+          case Failure(e) =>
+            assert(true)
+          case Success(n) =>
+            assert(n > 0, s"$f was successfully extracted")
         }}
       }
     }

@@ -637,7 +637,7 @@ trait ASTExtractors {
     object ExArrayLiteral {
       def unapply(tree: tpd.Apply): Option[(Type, Seq[tpd.Tree])] = tree match {
         // Array of primitives
-        case Apply(ExSymbol("scala", "Array$", "apply"), List(arg, SeqLiteral(args, _))) =>
+        case Apply(ExSymbol("scala", "Array$", "apply"), List(arg, Typed(SeqLiteral(args, _), _))) =>
           tree.tpe match {
             case AppliedType(_, List(t1)) =>
               Some((t1, arg :: args))
@@ -646,7 +646,7 @@ trait ASTExtractors {
           }
 
         // Array of objects, which have an extra implicit ClassTag argument (that we do not need)
-        case Apply(Apply(TypeApply(ExSymbol("scala", "Array$", "apply"), List(tpt)), List(SeqLiteral(args, _))), ctags) =>
+        case Apply(Apply(TypeApply(ExSymbol("scala", "Array$", "apply"), List(tpt)), List(Typed(SeqLiteral(args, _), _))), ctags) =>
           Some((tpt.tpe, args))
 
         case Apply(TypeApply(ExSymbol("scala", "Array$", "empty"), List(tpt)), ctags) =>
@@ -1027,6 +1027,7 @@ trait ASTExtractors {
     object ExAssertExpression {
       def unapply(tree: tpd.Tree): Option[(tpd.Tree, Option[String], Boolean)] = tree match {
         // TODO: Comment
+        // TODO: Maybe no longer necessary?
         case Inlined(
           Ident(ExNamed("Predef$")) | Apply(Ident(ExNamed("assert")), _),
           Nil,
@@ -1041,6 +1042,8 @@ trait ASTExtractors {
             case _ => Some((body, None, false))
           }
 
+        // TODO: Comment
+        // TODO: Maybe no longer necessary?
         // This case can happen if we have an assert(expr) where expr can be reduced to false at compile-time.
         case Inlined(
           Ident(ExNamed("Predef$")) | Apply(Ident(ExNamed("assert")), _),

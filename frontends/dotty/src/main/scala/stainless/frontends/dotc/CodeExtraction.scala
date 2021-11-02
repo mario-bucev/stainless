@@ -280,13 +280,48 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         allTypeDefs ++= newTypeDefs
 
       case td @ ExObjectDef() =>
-        val (obj, newClasses, newFunctions, newTypeDefs) = extractObject(td)
+        val (obj, newClasses, newFunctions0, newTypeDefs) = extractObject(td)
         subs :+= obj
         allClasses ++= newClasses
-        // TODO: missing bits
+
+        // Handling of default arguments
+        // It turns out that `stats` is ordered s.t. a class is ordered before its companion module.
+        // This is a desired ordering for the extraction of default arguments of classes.
+        // If we have a case class such as:
+        //
+        //    case class Hello(x: Int = 123)
+        //
+        // Then Dotty transforms this source program into something like:
+        //
+        //   case class Hello(x: Int) { /* ... */ }
+        //   class Hello$ {  // synthetized companion module
+        //      def <init>$default$1: Int = 123
+        //      // ...
+        //   }
+        //
+        // The extraction process will take care of extracting <init>$default$1 but we would like to annotate that function
+        // to be a default argument for Hello. To this end, we must first have extracted Hello before appropriately
+        // annotating that function with @paramInit(Hello)
+        val newFunctions = newFunctions0.flatMap { fd =>
+          if (
+            fd.id.name.startsWith("<init>$default$") &&
+              !fd.flags.exists(_.isInstanceOf[xt.ClassParamInit])
+          ) {
+            val correspondingClassName = td.name.toTermName.underlying.toString
+            val cdIdOpt = allClasses.flatMap(cd =>
+              if (cd.id.name == correspondingClassName) Some(cd.id)
+              else None)
+            // We may not find the corresponding class. This can happen for @ignored classes having default argument
+            // (their <init>$default functions however have not an explicit @ignore annotation, so we should remove them manually)
+            cdIdOpt.map(cdId => fd.copy(flags = (xt.ClassParamInit(cdId) +: fd.flags)).setPos(fd))
+          } else {
+            Some(fd)
+          }
+        }
         allFunctions ++= newFunctions
         allTypeDefs ++= newTypeDefs
 
+      /*
       // TODO: What is this supposed to do??? does not seem to work.
       case t @ DefDef(name, _, tpt, _)
         if (t.symbol is Synthetic) &&
@@ -300,7 +335,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
             companionOf = Some(cid)
           case _ =>
         }
-
+      */
       // Also subsumes case md: ModuleDef equivalent in scalac
       // TODO: Or does it??? What is even a ModuleDef??
       case cd @ ExClassDef() =>
@@ -467,6 +502,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
 
   private def extractObject(td: tpd.TypeDef)(using ClassDefs): (xt.ModuleDef, Seq[xt.ClassDef], Seq[xt.FunDef], Seq[xt.TypeDef]) = {
     val template = td.rhs.asInstanceOf[tpd.Template]
+    /*
     // Filter out @invariant-annotated methods generated in companion module of case classes extending AnyVal.
     // For instance, following snippet:
     //  case class TestVal(x: Int) extends AnyVal {
@@ -490,7 +526,8 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         !((dd.symbol.name is NameKinds.ExtMethName) && annotationsOf(dd.symbol).contains(xt.IsInvariant))
       case _ => true
     }
-    val (imports, classes, functions, typeDefs, subs, allClasses, allFunctions, allTypeDefs, _) = extractStatic(filteredBody)
+    */
+    val (imports, classes, functions, typeDefs, subs, allClasses, allFunctions, allTypeDefs, _) = extractStatic(template.body)
 
     val module = xt.ModuleDef(
       getIdentifier(td.symbol),
@@ -809,7 +846,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
     }
 
     // TODO: comment: we want to inline things like toListPost$extension
-    val body =
+    val body = rhs /*
       /*if (!flags.contains(xt.IsInvariant)) rhs
       else */rhs match {
         case ExCall(_, extMethSym, _, _) if (extMethSym.name is NameKinds.ExtMethName) =>
@@ -825,7 +862,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         case _ =>
           // Not calling an extension method (which is the case for non-value classes)
           rhs
-      }
+      }*/
     val paramsMap = (vparams zip newParams).map { case (param, vd) =>
       param.symbol -> (if (isByName(param)) () => xt.Application(vd.toVariable, Seq()).setPos(vd.toVariable) else () => vd.toVariable)
     }.toMap
@@ -1892,9 +1929,9 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
 //      println(s"       ~> $rec")
       rec
 */
-    case c@ExExtensionMethodCall(thiss, sym, tps, args) =>
-      val res = extractCall(c, Some(thiss), sym, tps, args)
-      res
+//    case c@ExExtensionMethodCall(thiss, sym, tps, args) =>
+//      val res = extractCall(c, Some(thiss), sym, tps, args)
+//      res
     case c@ExCall(rec, sym, tps, args) =>
       extractCall(c, rec, sym, tps, args)
 
@@ -2696,6 +2733,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
 
       case AnnotatedType(tpe, _) => extractType(tpe)
 
+      // TODO: Check if we still need this
 //        def keysOf(value: B): List[A] = {
 //          toList.filter(_._2 == value).map(_._1)
 //        }

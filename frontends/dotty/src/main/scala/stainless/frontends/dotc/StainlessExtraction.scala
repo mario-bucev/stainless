@@ -19,8 +19,8 @@ class StainlessExtraction(val inoxCtx: inox.Context,
                           val cache: SymbolsContext) extends PluginPhase {
 
   override val phaseName = "stainless"
-  override val runsAfter = Set(Pickler.name) // TODO: Was typer
-  override val runsBefore = Set(PatternMatcher.name)
+  override val runsAfter = Set(Pickler.name) // TODO: Was typer then Pickeler
+  override val runsBefore = Set(FirstTransform.name) // TODO: was PatternMatcher
 
   // TODO: we are overriding MiniPhase#run that is defined as singletonGroup.run. Is this ok?
   override def run(using ctx: DottyContext): Unit = {

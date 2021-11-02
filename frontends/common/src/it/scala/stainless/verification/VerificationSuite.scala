@@ -142,4 +142,3 @@ class SMTCVC4VerificationSuite extends VerificationSuite {
     case _ => super.filter(ctx, name)
   }
 }
-

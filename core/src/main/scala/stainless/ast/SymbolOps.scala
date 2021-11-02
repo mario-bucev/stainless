@@ -279,7 +279,10 @@ trait SymbolOps extends inox.ast.SymbolOps with TypeOps { self =>
         case ClassParamInit(cid) => id == cid
         case _ => false
       }
-    }.sortBy(_.id.name.stripPrefix("apply$default$").toInt)
+    }.sortBy(_.id.name
+      .stripPrefix("apply$default$") // Scalac
+      .stripPrefix("<init>$default$") // Dotty
+      .toInt)
   }
 
 }
