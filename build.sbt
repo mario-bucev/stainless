@@ -205,7 +205,7 @@ lazy val libraryFiles: Seq[(String, File)] = {
   res
 }
 
-lazy val commonFrontendSettings: Seq[Setting[_]] = Defaults.itSettings ++ Seq(
+def commonFrontendSettings(compilerVersion: String): Seq[Setting[_]] = Defaults.itSettings ++ Seq(
 
   /**
     * NOTE: IntelliJ seems to have trouble including sources located outside the base directory of an
@@ -237,6 +237,7 @@ lazy val commonFrontendSettings: Seq[Setting[_]] = Defaults.itSettings ++ Seq(
       s"""|package stainless
           |
           |object Main extends MainHelpers {
+          |  val compilerVersion = "$compilerVersion"
           |  val defaultPaths = List(${removeSlashU(libraryFiles.map(_._1).mkString("\"\"\"", "\"\"\",\n \"\"\"", "\"\"\""))})
           |  val libPaths = try {
           |    val source = scala.io.Source.fromFile(\"${libFilesFile}\")
@@ -314,7 +315,7 @@ lazy val `stainless-algebra` = (project in file("frontends") / "algebra")
 lazy val `stainless-scalac` = (project in file("frontends") / "scalac")
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(BuildInfoPlugin)
-  .settings(commonSettings, commonFrontendSettings)
+  .settings(commonSettings, commonFrontendSettings("2.13.6"))
   .settings(scriptSettings, assemblySettings)
   .settings(noPublishSettings)
   .settings(
@@ -359,7 +360,7 @@ lazy val `stainless-scalac-standalone` = (project in file("frontends") / "stainl
 lazy val `stainless-dotty` = (project in file("frontends/dotty"))
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(BuildInfoPlugin)
-  .settings(commonSettings, commonFrontendSettings)
+  .settings(commonSettings, commonFrontendSettings("3.0.2"))
   .settings(scriptSettings, assemblySettings)
   .settings(noPublishSettings)
   .settings(

@@ -47,7 +47,19 @@ trait TypeCheckerSuite extends ComponentTestSuite {
     case _ => super.filter(ctx, name)
   }
 
-  testAll("verification/valid", recursive = true) { (analysis, reporter) =>
+  // Scala 2 BitVectors tests leverages the fact that `==` can be used to compare two unrelated types.
+  // For instance, if we have x: Int42, then x == 42 is legal.
+  // In Scala 3, however, this expression is ill-formed because Int42 and Int (the widened type of 42) are unrelated.
+  // Therefore, all BitVectors tests for Scala 3 must perform a conversion for litterals
+  // (e.g. the above expression is rewritten to x == (42: Int42))
+  def bitVectorsTestDiscarding(file: String): Boolean = {
+    val scala2BitVectors = Set("MicroTests/scalac/BitVectors1.scala", "MicroTests/scalac/BitVectors2.scala", "MicroTests/scalac/BitVectors3.scala")
+    val scala3BitVectors = Set("MicroTests/dotty/BitVectors1.scala", "MicroTests/dotty/BitVectors2.scala", "MicroTests/dotty/BitVectors3.scala")
+    (isScala2 && scala3BitVectors.exists(t => file.endsWith(t))) ||
+      (isScala3 && scala2BitVectors.exists(t => file.endsWith(t)))
+  }
+
+  testAll("verification/valid", recursive = true, bitVectorsTestDiscarding) { (analysis, reporter) =>
     assert(cacheAllowed || analysis.toReport.stats.validFromCache == 0, "no cache should be used for these tests")
     for ((vc, vr) <- analysis.vrs) {
       if (vr.isInvalid) fail(s"The following verification condition was invalid: $vc @${vc.getPos}")

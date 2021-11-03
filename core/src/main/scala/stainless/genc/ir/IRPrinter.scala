@@ -52,7 +52,7 @@ final class IRPrinter[S <: IR](val ir: S) {
     val post = ptx.newLine + "}"
 
     (if (fd.isPure) "@pure\n" else "") +
-    (if (fd.isExported) "@cCode.export\n" else "") +
+    (if (fd.isExported) "@cCode.`export`\n" else "") +
     pre + body + post
   }
 

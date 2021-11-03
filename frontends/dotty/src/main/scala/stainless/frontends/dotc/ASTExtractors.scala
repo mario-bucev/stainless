@@ -17,6 +17,7 @@ import core.Types.*
 import core.Flags.*
 import core.Annotations.*
 import common.ClassDefs
+import util.SourcePosition
 
 import scala.collection.mutable.Map as MutableMap
 
@@ -26,6 +27,23 @@ trait ASTExtractors {
 
   def classFromName(nameStr: String): ClassSymbol = requiredClass(typeName(nameStr))
   def moduleFromName(nameStr: String): TermSymbol = requiredModule(typeName(nameStr))
+
+  lazy val ignoredClasses = Set(
+    defn.ObjectType,
+    defn.SerializableType,
+    defn.ProductClass.typeRef,
+    defn.Mirror_ProductClass.typeRef,
+    defn.Mirror_SumClass.typeRef,
+    defn.SingletonType,
+    defn.Mirror_SingletonClass.typeRef,
+    defn.AnyRefType,
+    defn.AnyValType,
+  )
+
+  def isIgnored(tp: Type): Boolean = ignoredClasses.exists(_ frozen_=:= tp) /*tp.dealias match {
+    case tr: TypeRef => ignoredClasses.contains(tr)
+    case _ => false
+  }*/
 
   def getAnnotations(sym: Symbol, ignoreOwner: Boolean = false): Seq[(String, Seq[tpd.Tree])] = {
     if (sym eq NoSymbol)
@@ -58,6 +76,18 @@ trait ASTExtractors {
       case ((keys, seq), (key, args)) => (keys + key, seq :+ (key -> args))
     }._2
   }
+
+  implicit def dottyPosToInoxPos(p: SourcePosition): inox.utils.Position = scala.util.Try({
+    if (!p.exists) {
+      inox.utils.NoPosition
+    } else if (p.start != p.end) {
+      inox.utils.RangePosition(p.startPos.line + 1, p.startPos.column + 1, p.startPos.point,
+        p.endPos.line + 1, p.endPos.column + 1, p.endPos.point,
+        dottyCtx.source.file.file)
+    } else {
+      inox.utils.OffsetPosition(p.startPos.line + 1, p.startPos.column + 1, p.startPos.point, dottyCtx.source.file.file)
+    }
+  }).toOption.getOrElse(inox.utils.NoPosition)
 
   // Well-known symbols that we match on
 

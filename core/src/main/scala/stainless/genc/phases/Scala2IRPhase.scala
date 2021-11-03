@@ -83,7 +83,7 @@ private class S2IRImpl(override val s: tt.type,
   def run(): Unit = {
     checkGlobalUsage()
 
-    // Start the transformation from `@cCode.export` (and `@cCode.global`) functions and classes
+    // Start the transformation from `@cCode.`export`` (and `@cCode.global`) functions and classes
     for (fd <- symbols.functions.values if fd.isExported)
       rec(Outer(fd), Seq())(using Map.empty, Env(Map.empty, Map.empty, fd.isExported))
 

@@ -36,34 +36,6 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
 
   given givenDebugSection: inox.DebugSection = frontend.DebugSectionExtraction
 
-  lazy val ignoredClasses = Set(
-    defn.ObjectType,
-    defn.SerializableType,
-    defn.ProductClass.typeRef,
-    defn.Mirror_ProductClass.typeRef,
-    defn.SingletonType,
-    defn.Mirror_SingletonClass.typeRef,
-    defn.AnyRefType,
-    defn.AnyValType,
-  )
-
-  def isIgnored(tp: Type): Boolean = ignoredClasses.exists(_ frozen_=:= tp) /*tp.dealias match {
-    case tr: TypeRef => ignoredClasses.contains(tr)
-    case _ => false
-  }*/
-
-  implicit def dottyPosToInoxPos(p: SourcePosition): inox.utils.Position = scala.util.Try({
-    if (!p.exists) {
-      inox.utils.NoPosition
-    } else if (p.start != p.end) {
-      inox.utils.RangePosition(p.startPos.line + 1, p.startPos.column + 1, p.startPos.point,
-                               p.endPos.line + 1, p.endPos.column + 1, p.endPos.point,
-                               dottyCtx.source.file.file)
-    } else {
-      inox.utils.OffsetPosition(p.startPos.line + 1, p.startPos.column + 1, p.startPos.point, dottyCtx.source.file.file)
-    }
-  }).toOption.getOrElse(inox.utils.NoPosition)
-
   // TODO: no equivalent in Scalac; seems also error-prone (in extractClass, getIdentifier is used whereas field fetching uses getParam...)
   // private def getParam(sym: Symbol): SymbolIdentifier = cache fetchParam sym
 
@@ -557,7 +529,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
     val annots = annotationsOf(sym)
     val flags = annots ++
       (if (isValueClass) Some(xt.ValueClass) else None) ++
-      (if ((sym is Abstract) || (sym is Trait)) Some(xt.IsAbstract) else None) ++
+      (if (sym isOneOf AbstractOrTrait) Some(xt.IsAbstract) else None) ++
       (if (sym is Sealed) Some(xt.IsSealed) else None) ++
       (if ((sym is ModuleClass) && (sym is Case)) Some(xt.IsCaseObject) else None)
 
@@ -685,7 +657,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
       case t @ ExMutableFieldDef(_, _, rhs) if rhs != tpd.EmptyTree =>
         outOfSubsetError(t, "Mutable fields in traits or abstract classes cannot have default values")
 
-      case vd @ ExMutableFieldDef(sym, _, _) if (vd.symbol.owner is Abstract) || (vd.symbol.owner is Trait) =>
+      case vd @ ExMutableFieldDef(sym, _, _) if vd.symbol.owner isOneOf AbstractOrTrait =>
         // TODO: Are we guarenteed to have vd.rhs = EmptyTree?
         methods :+= extractFunction(sym, vd, Seq.empty, Seq.empty, tpd.EmptyTree)(using defCtx)
 
@@ -1939,10 +1911,13 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
     case _ => outOfSubsetError(tr, s"Stainless does not support expression: `$tr`")
   }).ensurePos(tr.sourcePos)
 
+  // TODO: Can be put back
   private def extractCall(tr: tpd.Tree, rec: Option[tpd.Tree], sym: Symbol, tps: Seq[tpd.Tree], args: Seq[tpd.Tree])(using dctx: DefContext, cds: ClassDefs): xt.Expr = rec match {
+    // TODO: Can be removed
+    /*
     case Some(Select(rec @ Super(_, _), m)) if (sym is Abstract) && m != nme.CONSTRUCTOR =>
       outOfSubsetError(tr.sourcePos, "Cannot issue a super call to an abstract method.")
-
+    */
     // TODO: what about object method invocation? are these function invocation?
     case None if (sym.owner is ModuleClass) && (sym.owner is Case) =>
       val ct = extractType(sym.owner.thisType)(using dctx, tr.sourcePos).asInstanceOf[xt.ClassType]

@@ -31,7 +31,7 @@ object Global {
     if (state.y > 0) move()
   }.ensuring(_ => state.stable)
 
-  @cCode.export
+  @cCode.`export`
   def main() {
     @ghost implicit val state = newState
     implicit val gs = GlobalState()

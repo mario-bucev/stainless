@@ -40,13 +40,19 @@ class StainlessExtraction(val inoxCtx: inox.Context,
         (FreshIdentifier(unit.source.file.name.replaceFirst("[.][^.]+$", "")), List.empty)
     }
 
-    val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs, _) = extraction.extract(stats)
-    assert(unitFunctions.isEmpty, "Packages shouldn't contain functions")
+    val fragmentChecker = new FragmentChecker(inoxCtx)
+    fragmentChecker.ghostChecker(tree)
+    fragmentChecker.checker(tree)
 
-    val file = unit.source.file.absolute.path
-    val isLibrary = stainless.Main.libraryFiles contains file
-    val xtUnit = xt.UnitDef(id, imports, unitClasses, subs, !isLibrary)
+    if (!fragmentChecker.hasErrors()) {
+      val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs, _) = extraction.extract(stats)
+      assert(unitFunctions.isEmpty, "Packages shouldn't contain functions")
 
-    callback(file, xtUnit, classes, functions, typeDefs)
+      val file = unit.source.file.absolute.path
+      val isLibrary = stainless.Main.libraryFiles contains file
+      val xtUnit = xt.UnitDef(id, imports, unitClasses, subs, !isLibrary)
+
+      callback(file, xtUnit, classes, functions, typeDefs)
+    }
   }
 }

@@ -37,9 +37,10 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
 
   protected def filter(ctx: inox.Context, name: String): FilterStatus = Test
 
-  def testAll(dir: String, recursive: Boolean = false)(block: (component.Analysis, inox.Reporter) => Unit): Unit = {
+  // Note: discarded Scala files will not even be loaded and extracted.
+  def testAll(dir: String, recursive: Boolean = false, discard: String => Boolean = _ => false)(block: (component.Analysis, inox.Reporter) => Unit): Unit = {
     require(dir != null, "Function testAll must be called with a non-null directory string")
-    val fs = resourceFiles(dir, _.endsWith(".scala"), recursive).toList
+    val fs = resourceFiles(dir, f => f.endsWith(".scala") && !discard(f), recursive).toList
 
     // Toggle this variable if you need to debug one specific test.
     // You might also want to run `it:testOnly *<some test suite>* -- -z "<some test filter>"`.

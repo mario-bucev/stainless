@@ -3,7 +3,9 @@
 package stainless
 package ast
 
+import inox.Options
 import org.scalatest.funsuite.AnyFunSuite
+import stainless.verification.optTypeChecker
 
 class TestingGround extends AnyFunSuite with InputUtils {
 
@@ -52,37 +54,24 @@ class TestingGround extends AnyFunSuite with InputUtils {
       |}""".stripMargin)
 
   val tayst2 = List(
-    """import stainless.lang._
+    """
+      |object GhostDafny {
+      |  import stainless.annotation._
       |
-      |object InnerClasses3 {
+      |  sealed abstract class GhostDt
+      |  case class Nilly(@ghost extraInfo: BigInt) extends GhostDt
       |
-      |  abstract class Test {
-      |    def something: BigInt
-      |  }
-      |
-      |  def foo(x: Boolean, l: BigInt): Test = {
-      |    require(l > 1)
-      |
-      |    case class FooBarBaz(a: Boolean) extends Test {
-      |      def something: BigInt = {
-      |        case class HelloWorld(b: Boolean) extends Test {
-      |          def something: BigInt = if (FooBarBaz.this.a && b) l else 42
-      |        }
-      |        val hello = HelloWorld(x && this.a)
-      |        hello.something
-      |      }
+      |  object GhostTests {
+      |    def M(dt: GhostDt): Unit = {
+      |      @ghost var g: BigInt = 5
+      |      var dd: GhostDt = Nilly(0);
+      |      dd = Nilly(g);  // fine
       |    }
-      |
-      |    def groineau(fbb: FooBarBaz): Boolean = fbb.a
-      |
-      |    FooBarBaz(x)
       |  }
-      |
-      |  def test = foo(false, 2)
-      |}
-      |""".stripMargin)
+      |}""".stripMargin)
 
   val ctx: inox.Context = stainless.TestContext.empty
+//  val ctx: inox.Context = stainless.TestContext(Options(Seq(optTypeChecker(true))))
   import ctx.given
   // verification/valid/FunctionMapsObj.scala
   // verification/valid/StateMachine.scala
@@ -90,8 +79,9 @@ class TestingGround extends AnyFunSuite with InputUtils {
   // verification/valid/Iterables.scala
   // verification/valid/ValueClassesInv.scala
   // verification/invalid/ADTInitialization.scala
-  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/verification/invalid/ADTInitialization.scala").mkString)
-  val (_, xlangProgram) = load(fromFile)
+  // verification/valid/MicroTests/Monads1.scala
+  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/imperative/valid/FunctionCaching.scala").mkString)
+  val (_, xlangProgram) = load(tayst2)
   val x = 3
 //  val run = verification.VerificationComponent.run(extraction.pipeline)
 //  val program = inox.Program(run.trees)(run extract xlangProgram.symbols)

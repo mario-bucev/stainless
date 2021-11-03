@@ -665,7 +665,7 @@ object ImageProcessing {
     else StdOut.println("false")
   }
 
-  @cCode.export
+  @cCode.`export`
   def main(): Int = {
     implicit val state = stainless.io.newState
     val input  = FIS.open("input.bmp")

@@ -11,8 +11,8 @@ import ExtraOps._
 import collection.mutable.{Set => MutableSet}
 
 /*
- * Compute the subset of symbols on which `@cCode.export` functions depend
- * Generic functions cannot be marked `@cCode.export` (only specialized versions that are
+ * Compute the subset of symbols on which `@cCode.`export`` functions depend
+ * Generic functions cannot be marked `@cCode.`export`` (only specialized versions that are
  * used by exported functions are exported to C).
  *
  * NOTE We cannot rely on purescala.DependencyFinder as it will traverse functions

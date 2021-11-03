@@ -5,7 +5,7 @@ import stainless.io._
 
 object Unsigned {
 
-  @cCode.export
+  @cCode.`export`
   def main(): Unit = {
     @ghost implicit val state = newState
     val a = fa(16, 84)

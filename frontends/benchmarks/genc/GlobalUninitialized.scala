@@ -31,7 +31,7 @@ object GlobalUninitialized {
     if (state.y > 0) move()
   }.ensuring(_ => state.stable)
 
-  @cCode.export
+  @cCode.`export`
   def main(): Unit = {
     @ghost implicit val state = newState
     implicit val gs = GlobalState(Array.fill(100)(0), false, 0, 0)
