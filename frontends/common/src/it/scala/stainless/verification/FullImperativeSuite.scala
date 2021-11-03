@@ -85,7 +85,7 @@ class FullImperativeSuite extends ComponentTestSuite with inox.MainHelpers {
         block(report, ctx.reporter)
       }
     } else {
-      given ctx: inox.Context = inox.TestContext.empty
+      given ctx: inox.Context = stainless.TestContext.empty
       val (structure, program) = loadFiles(fs.map(_.getPath))
       program.symbols.ensureWellFormed
 
@@ -133,7 +133,7 @@ class FullImperativeSuite extends ComponentTestSuite with inox.MainHelpers {
   }
 
   def disc(s: String): Boolean =
-    !s.endsWith("full-imperative/invalid/Aliasing.scala")
+    !s.endsWith("full-imperative/valid/AsHeapRefSet.scala")
 
   testAll("full-imperative/valid", false, disc) { (report, reporter) =>
     for ((vc, vr) <- report.vrs) {
@@ -146,6 +146,5 @@ class FullImperativeSuite extends ComponentTestSuite with inox.MainHelpers {
   testAll("full-imperative/invalid") { (analysis, _) =>
     val report = analysis.toReport
     assert(report.totalInvalid > 0, "There should be at least one invalid verification condition.")
-  }
-  */
+  }*/
 }

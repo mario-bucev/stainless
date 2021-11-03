@@ -200,11 +200,27 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
     val allClassDefs = cds.defs ++ stats.collect {
       case cd@ExClassDef() => cd
     }
-    // TODO: Say why. Because class also have ValDefs or DedDef ctor
+    // Classes may also have corresponding ValDefs or DefDef for which the annotations are not propagated
+    // For instance, if we consider:
+    //
+    //  @ignore
+    //  implicit class WhileDecorations(val u: Unit) { /* ... */ }
+    //
+    // Then Dotty translates the original AST into:
+    //
+    //  @ignore
+    //  class WhileDecorations(val u: Unit) { /* ... */ }
+    //  // Note: the @ignore is not propagated
+    //  def WhileDecorations(u: Unit): WhileDecorations = new WhileDecorations(u)
+    //
+    // So we need to add these annotations by ourselves.
+
     // TODO: What about syntectic stuff from ignored objects?
-    val ignoredClasses = allClassDefs.filter(td => annotationsOf(td.symbol).contains(xt.Ignore))
-      .map(_.symbol.name.toTermName)
-      .toSet
+//    val ignoredClasses = allClassDefs.filter(td => annotationsOf(td.symbol).contains(xt.Ignore))
+//      .map(_.symbol.name.toTermName)
+//      .toSet
+    val extraFlags = allClassDefs.map(td => td.symbol.name.toTermName -> annotationsOf(td.symbol)).toMap.withDefaultValue(Seq.empty)
+    val ignoredClasses = extraFlags.filter(_._2.contains(xt.Ignore)).map(_._1).toSet
     given ClassDefs = ClassDefs(allClassDefs)
 
     var imports   : Seq[xt.Import]    = Seq.empty
@@ -323,12 +339,14 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
       case t if (t.symbol is Synthetic) && !canExtractSynthetic(t.symbol) =>
       // ignore
 
+      // TODO: Can be removed
       case ExFunctionDef(fsym, _, _, _, _) if fsym.name is NameKinds.ExtMethName =>
         // ignore
 
       // Normal function
       case dd @ ExFunctionDef(fsym, tparams, vparams, tpt, rhs) =>
-        val fd = extractFunction(fsym, dd, tparams, vparams, rhs)
+        val fd0 = extractFunction(fsym, dd, tparams, vparams, rhs)
+        val fd = fd0.copy(flags = fd0.flags ++ extraFlags(fsym.name.toTermName))
         functions :+= fd.id
         allFunctions :+= fd
 
@@ -337,12 +355,14 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
 
       // Normal fields
       case t @ ExFieldDef(fsym, _, rhs) =>
-        val fd = extractFunction(fsym, t, Seq(), Seq(), rhs)
+        val fd0 = extractFunction(fsym, t, Seq(), Seq(), rhs)
+        val fd = fd0.copy(flags = fd0.flags ++ extraFlags(fsym.name.toTermName))
         functions :+= fd.id
         allFunctions :+= fd
 
       case t @ ExLazyFieldDef(fsym, _, rhs) =>
-        val fd = extractFunction(fsym, t, Seq.empty, Seq.empty, rhs)
+        val fd0 = extractFunction(fsym, t, Seq.empty, Seq.empty, rhs)
+        val fd = fd0.copy(flags = fd0.flags ++ extraFlags(fsym.name.toTermName))
         functions :+= fd.id
         allFunctions :+= fd
 
@@ -1152,6 +1172,12 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         val b       = rec(xs)
         xt.Decreases(measure, b).setPos(e.sourcePos)
 
+      case (e @ ExReadsExpression(objs)) :: xs =>
+        xt.Reads(extractTree(objs)(using cctx), rec(xs)).setPos(e.sourcePos)
+
+      case (e @ ExModifiesExpression(objs)) :: xs =>
+        xt.Modifies(extractTree(objs)(using cctx), rec(xs)).setPos(e.sourcePos)
+
       case (d @ ExFunctionDef(sym, tparams, params, ret, b)) :: xs =>
         val (id, tdefs, _) = cctx.localFuns(sym)
         val fd = extractFunction(sym, d, tparams, params, b, typeParams = Some(tdefs.map(_.tp)))(using cctx)
@@ -1207,6 +1233,8 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
         extractTree(x)(using cctx) match {
           case xt.Decreases(m, b) => xt.Decreases(m, xt.Block(b +: elems, last).setPos(re)).setPos(x.sourcePos)
           case xt.Require(pre, b) => xt.Require(pre, xt.Block(b +: elems, last).setPos(re)).setPos(x.sourcePos)
+          case xt.Reads(objs, b) => xt.Reads(objs, xt.Block(b +: elems, last).setPos(re)).setPos(x.sourcePos)
+          case xt.Modifies(objs, b) => xt.Modifies(objs, xt.Block(b +: elems, last).setPos(re)).setPos(x.sourcePos)
           case b => xt.Block(b +: elems, last).setPos(x.sourcePos)
         }
 

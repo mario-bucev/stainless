@@ -80,7 +80,7 @@ class TestingGround extends AnyFunSuite with InputUtils {
   // verification/valid/ValueClassesInv.scala
   // verification/invalid/ADTInitialization.scala
   // verification/valid/MicroTests/Monads1.scala
-  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/imperative/valid/FunctionCaching.scala").mkString)
+  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/full-imperative/valid/AsHeapRefSet").mkString)
   val (_, xlangProgram) = load(tayst2)
   val x = 3
 //  val run = verification.VerificationComponent.run(extraction.pipeline)
