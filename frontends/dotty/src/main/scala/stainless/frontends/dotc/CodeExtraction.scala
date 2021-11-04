@@ -664,12 +664,18 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
       case dd @ ExFunctionDef(fsym, tparams, vparams, tpt, rhs) =>
         methods :+= extractFunction(fsym, dd, tparams, vparams, rhs)(using defCtx)
 
-      // TODO: contrarily to scalac, dotty does not generate accessor fns for field, so we must create them by ourselves
-      //  (including the CaseAccessor + ParamAccessor) like def f = this.f
-      //  However, what should we do for things we do not consider as fields but are "fields" (ValDef) from the perspective of dotty?
+      // FIXME: contrarily to scalac, dotty does not generate accessor fns for field.
+      //  With Scala 2, given a field (whether ctor or non-ctor), we get a pair of definitions: the val itself and its accessor fn.
+      //  For *non-ctor fields*, the Scalac frontend creates a pair of *functions* as well:
+      //  one for the val (annotated as @field) and one for the accessor (annotated as @accessor).
+      //  However, with Dotty, we do not get an accessor fn.
+      //  Since we must create one function for the field using the val symbol, we can't create
+      //  an accessor fn with the same val symbol, as it's already been used.
+      //  As such, it seems we cannot create an accessor fn... Or do we? there is this commented getIdentifier thing in ExThisCall
       case t @ ExFieldDef(fsym, _, rhs) =>
         val fd = extractFunction(fsym, t, Seq.empty, Seq.empty, rhs)(using defCtx)
-        methods :+= fd.copy(flags = fd.flags :+ xt.FieldDefPosition(i))
+        // FIXME: A field should not be annotated as an accessor of itself!!!!
+        methods :+= fd.copy(flags = fd.flags ++ Seq(xt.FieldDefPosition(i), xt.IsAccessor(Some(getIdentifier(fsym)))))
 
       case t @ ExLazyFieldDef(fsym, _, rhs) =>
         methods :+= extractFunction(fsym, t, Seq.empty, Seq.empty, rhs)(using defCtx)
@@ -1582,6 +1588,8 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
     case ExBooleanLiteral(v) => xt.BooleanLiteral(v)
     case ExCharLiteral(c) => xt.CharLiteral(c)
     case ExStringLiteral(s) => xt.StringLiteral(s)
+
+    case ExEffectivelyLiteral(lit) => extractTree(lit)
 
     case ExIdentity(body) => extractTree(body)
 

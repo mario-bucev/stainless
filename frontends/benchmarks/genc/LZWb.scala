@@ -289,7 +289,7 @@ object LZWb {
     } ensuring { _ => isEmpty && isValid }
 
     def set(b: Buffer): Unit = {
-      if (b.isEmpty) clear
+      if (b.isEmpty) clear()
       else setImpl(b)
     } ensuring { _ => b.isValid && isValid && isEqual(b) /* && b.isEqual(old(b)) */ }
 

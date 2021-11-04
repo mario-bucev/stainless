@@ -54,20 +54,9 @@ class TestingGround extends AnyFunSuite with InputUtils {
       |}""".stripMargin)
 
   val tayst2 = List(
-    """
-      |object GhostDafny {
-      |  import stainless.annotation._
-      |
-      |  sealed abstract class GhostDt
-      |  case class Nilly(@ghost extraInfo: BigInt) extends GhostDt
-      |
-      |  object GhostTests {
-      |    def M(dt: GhostDt): Unit = {
-      |      @ghost var g: BigInt = 5
-      |      var dd: GhostDt = Nilly(0);
-      |      dd = Nilly(g);  // fine
-      |    }
-      |  }
+    """case class Potato(x: Int) {
+      |  val tayst: Int = x + 1
+      |  require(tayst >= 0)
       |}""".stripMargin)
 
   val ctx: inox.Context = stainless.TestContext.empty
@@ -80,8 +69,9 @@ class TestingGround extends AnyFunSuite with InputUtils {
   // verification/valid/ValueClassesInv.scala
   // verification/invalid/ADTInitialization.scala
   // verification/valid/MicroTests/Monads1.scala
-  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/full-imperative/valid/AsHeapRefSet").mkString)
-  val (_, xlangProgram) = load(tayst2)
+  // extraction/valid/NonGhostUpdate.scala
+  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/extraction/valid/NonGhostUpdate.scala").mkString)
+  val (_, xlangProgram) = load(fromFile)
   val x = 3
 //  val run = verification.VerificationComponent.run(extraction.pipeline)
 //  val program = inox.Program(run.trees)(run extract xlangProgram.symbols)

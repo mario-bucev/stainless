@@ -56,6 +56,11 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
 
   def checker(tree: tpd.Tree): Unit = (new Checker)((), tree)
 
+  private def ctorFieldsOf(clsInfo: ClassInfo): List[Symbol] = {
+    // Note: we do filter over clsInfo.fields (defined in Types) because the order of the fields is not kept.
+    // Instead, we employ decls because the order is preserved
+    clsInfo.decls.iterator.filter(s => !(s is Method) && ((s is ParamAccessor) || (s is CaseAccessor))).toList
+  }
 
   class GhostAnnotationChecker extends tpd.TreeTraverser {
     val ghostAnnotation = Symbols.requiredClass("stainless.annotation.ghost")
@@ -143,11 +148,11 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
       }
       else if (isCopy || isApply) {
         // TODO: ensure this is correct. TODO: caseClassParams: we want fields, not params
-        val fields =
-          if (isCopy) sym.owner.denot.asClass.classInfo.fields
+        val clsInfo =
+          if (isCopy) sym.owner.denot.asClass.classInfo
           // The apply method is in the module class; we get the actual case class using companionClass
-          else sym.owner.companionClass.denot.asClass.classInfo.fields
-        val ctorFields = fields.map(_.symbol).filter(fld => (fld is CaseAccessor) || (fld is ParamAccessor))
+          else sym.owner.companionClass.denot.asClass.classInfo
+        val ctorFields = ctorFieldsOf(clsInfo)
         val params = m.asInstanceOf[tpd.DefDef].termParamss.flatten.map(_.symbol)
         for ((ctorField, param) <- ctorFields.zip(params) if ctorField.hasAnnotation(ghostAnnotation))
           param.addAnnotation(ghostAnnotation)
@@ -209,9 +214,10 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
           // The pattern match variables need to add the ghost annotation from their case class ctor fields
           // We only do that for case classes synthesized unapply methods.
 
-          val caseClassSym = fun.symbol.denot.owner // The owner of the unapply method is the companion object
+          val caseClassInfo = fun.symbol.denot.owner // The owner of the unapply method is the companion object
             .denot.companionClass.asClass // We need the class itself to get the case class ctor fields
-          val ctorFields = caseClassSym.classInfo.fields.map(_.symbol).filter(fld => (fld is CaseAccessor) || (fld is ParamAccessor))
+            .classInfo
+          val ctorFields = ctorFieldsOf(caseClassInfo)
           for ((param, arg) <- ctorFields.zip(args))
             if (param.hasAnnotation(ghostAnnotation)) {
               arg match {

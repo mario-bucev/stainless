@@ -309,8 +309,17 @@ trait ASTExtractors {
       }
     }
 
-    object ExLiteral {
-      def unapply(tree: tpd.Literal): Boolean = true
+    // TODO: Say for things such as Int.MaxValue etc
+    object ExEffectivelyLiteral {
+      def unapply(tree: tpd.Tree): Option[tpd.Literal] = tree match {
+        case sel@Select(Ident(_), _) =>
+          sel.symbol.denot.info match {
+            case ExprType(ConstantType(c)) => Some(tpd.Literal(c))
+            case ConstantType(c) => Some(tpd.Literal(c))
+            case _ => None
+          }
+        case _ => None
+      }
     }
 
     object ExBooleanLiteral {

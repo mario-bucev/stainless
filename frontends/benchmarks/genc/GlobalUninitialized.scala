@@ -33,8 +33,8 @@ object GlobalUninitialized {
 
   @cCode.`export`
   def main(): Unit = {
-    @ghost implicit val state = newState
-    implicit val gs = GlobalState(Array.fill(100)(0), false, 0, 0)
+    @ghost implicit val state: State = newState
+    implicit val gs: GlobalState = GlobalState(Array.fill(100)(0), false, 0, 0)
     gs.x = 8
     gs.y = 4
     gs.stable = true

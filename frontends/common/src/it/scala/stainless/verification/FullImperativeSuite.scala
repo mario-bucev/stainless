@@ -132,19 +132,16 @@ class FullImperativeSuite extends ComponentTestSuite with inox.MainHelpers {
     }
   }
 
-  def disc(s: String): Boolean =
-    !s.endsWith("full-imperative/valid/AsHeapRefSet.scala")
-
-  testAll("full-imperative/valid", false, disc) { (report, reporter) =>
+  testAll("full-imperative/valid") { (report, reporter) =>
     for ((vc, vr) <- report.vrs) {
       if (vr.isInvalid) fail(s"The following verification condition was invalid: $vc @${vc.getPos}")
       if (vr.isInconclusive) fail(s"The following verification condition was inconclusive: $vc @${vc.getPos}")
     }
     reporter.terminateIfError()
   }
-  /*
+
   testAll("full-imperative/invalid") { (analysis, _) =>
     val report = analysis.toReport
     assert(report.totalInvalid > 0, "There should be at least one invalid verification condition.")
-  }*/
+  }
 }
