@@ -61,7 +61,8 @@ private class SimpleReporter(val reporter: inox.Reporter) extends DottyReporter 
     if (!pos.exists) {
       printMessage(msg, inox.utils.NoPosition, severity)
     } else {
-      val lpos = inox.utils.OffsetPosition(pos.line, pos.column, pos.point, pos.source.file.file)
+      // Lines and column starts from 0 for Dotty
+      val lpos = inox.utils.OffsetPosition(pos.line + 1, pos.column + 1, pos.point, pos.source.file.file)
       printMessage(msg, lpos, severity)
     }
   }

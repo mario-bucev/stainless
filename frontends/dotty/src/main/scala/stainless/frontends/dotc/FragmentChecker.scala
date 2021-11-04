@@ -11,6 +11,7 @@ import Trees.*
 import ast.tpd
 import Flags.*
 import Annotations.*
+import Denotations.*
 import StdNames.*
 import Names.*
 import util.SourcePosition
@@ -280,10 +281,10 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
     )
 
     // method println is overloaded, so we need to add all overloads to our map
-    addOverloadsToMap(defn.ScalaPredefModule.info.decl(Names.termName("println")).symbol, "stainless.io.StdOut.println")
+    addOverloadsToMap(defn.ScalaPredefModule.info.decl(Names.termName("println")), "stainless.io.StdOut.println")
 
-    private def addOverloadsToMap(sym: Symbol, replacement: String): Unit =
-      sym.alternatives.foreach(a => stainlessReplacement += a -> replacement)
+    private def addOverloadsToMap(denot: Denotation, replacement: String): Unit =
+      denot.alternatives.foreach(a => stainlessReplacement += a.symbol -> replacement)
 
     // TODO: Test this
     private def checkType(pos: SourcePosition, tpe: Type): Unit = {

@@ -827,7 +827,6 @@ trait CodeExtraction extends ASTExtractors {
     } catch {
       case e: UnsupportedCodeException =>
         if (dctx.isExtern) {
-          println(e)
           xt.NoTree(extractType(tr)).setPos(tr.pos)
         } else {
           throw e

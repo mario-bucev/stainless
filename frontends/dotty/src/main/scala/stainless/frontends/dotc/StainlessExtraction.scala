@@ -12,7 +12,7 @@ import ast.Trees.PackageDef
 import typer._
 
 import extraction.xlang.{trees => xt}
-import frontend.{CallBack, Frontend, FrontendFactory, ThreadedFrontend}
+import frontend.{CallBack, Frontend, FrontendFactory, ThreadedFrontend, UnsupportedCodeException}
 
 class StainlessExtraction(val inoxCtx: inox.Context,
                           val callback: CallBack,
@@ -45,7 +45,14 @@ class StainlessExtraction(val inoxCtx: inox.Context,
     fragmentChecker.checker(tree)
 
     if (!fragmentChecker.hasErrors()) {
-      val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs, _) = extraction.extract(stats)
+      val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs, _) =
+        try extraction.extract(stats)
+        catch {
+          case UnsupportedCodeException(pos, msg) =>
+            inoxCtx.reporter.error(pos, msg)
+            return
+          case e => throw e
+        }
       assert(unitFunctions.isEmpty, "Packages shouldn't contain functions")
 
       val file = unit.source.file.absolute.path

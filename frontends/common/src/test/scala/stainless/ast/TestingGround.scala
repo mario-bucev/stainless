@@ -70,7 +70,7 @@ class TestingGround extends AnyFunSuite with InputUtils {
   // verification/invalid/ADTInitialization.scala
   // verification/valid/MicroTests/Monads1.scala
   // extraction/valid/NonGhostUpdate.scala
-  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/extraction/valid/NonGhostUpdate.scala").mkString)
+  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/extraction/invalid/EffectfulVal.scala").mkString)
   val (_, xlangProgram) = load(fromFile)
   val x = 3
 //  val run = verification.VerificationComponent.run(extraction.pipeline)
