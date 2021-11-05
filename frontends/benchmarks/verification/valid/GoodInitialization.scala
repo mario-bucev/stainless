@@ -1,11 +1,11 @@
 import stainless.annotation._
 
 object GoodInitialization {
-  case class AAA(xxx: BigInt) {
-    val yyy = xxx
-    val zzz = yyy + yyy
+  case class A(x: BigInt) {
+    val y = x
+    val z = y + y
   }
   def f(z: BigInt) = {
-    assert(AAA(21).zzz == 42)
+    assert(A(21).z == 42)
   }
 }

@@ -56,6 +56,14 @@ class TestingGround extends AnyFunSuite with InputUtils {
   val tayst2 = List(
     """sealed abstract class Abs {
       |  // require(x != 0)
+      |  val xxxx: Int
+      |}
+      |case class AbsValid(xxxx: Int) extends Abs
+      |""".stripMargin)
+
+  val tayst3 = List(
+    """sealed abstract class Abs {
+      |  // require(x != 0)
       |  // val x: Int
       |  // val y: Int
       |  def zzzz: Int
@@ -76,9 +84,9 @@ class TestingGround extends AnyFunSuite with InputUtils {
   // verification/valid/GoodInitialization.scala
   // extraction/valid/NonGhostUpdate.scala
   // common/src/test/resources/AbstractValOverrides.scala
-//  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/verification/valid/GoodInitialization.scala").mkString)
-  lazy val fromFile = List(scala.io.Source.fromFile("frontends/common/src/test/resources/AbstractValOverrides.scala").mkString)
-  val (_, xlangProgram) = load(tayst2)
+  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/verification/valid/GoodInitialization.scala").mkString)
+//  lazy val fromFile = List(scala.io.Source.fromFile("frontends/common/src/test/resources/AbstractValOverrides.scala").mkString)
+  val (_, xlangProgram) = load(fromFile)
   val x = 3
   val run = verification.VerificationComponent.run(extraction.pipeline)
   val program = inox.Program(run.trees)(run extract xlangProgram.symbols)

@@ -38,12 +38,13 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
 
   private def getIdentifier(sym: Symbol): SymbolIdentifier = cache.fetch(sym, false)
 
-//  val tayyst = new SymbolsContext
+  val tayyst = new SymbolsContext
 
   private def getFieldAccessorIdentifier(sym: Symbol): SymbolIdentifier = {
-    val res = cache.fetch(sym, true)
+//    val res = cache.fetchFieldAccessor(sym)
 //    val res = cache fetchParam sym
 //    val res = tayyst fetch sym
+    val res = cache.fetch(sym, true)
     res
   }
 
@@ -624,9 +625,9 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
     var methods: Seq[xt.FunDef] = Seq.empty
     var typeMembers: Seq[xt.TypeDef] = Seq.empty
 
-    if (sym.toString.contains("AAA") || sym.toString.contains("Abs") || sym.toString.contains("Sub") || sym.toString.contains("Ok")) {
-      println("plop")
-    }
+//    if (sym.toString.contains("AAA") || sym.toString.contains("Abs") || sym.toString.contains("Sub") || sym.toString.contains("Ok")) {
+//      println("plop")
+//    }
 
     // We collect the methods and fields
     for ((d, i) <- template.body.zipWithIndex) d match {
@@ -762,9 +763,9 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
     val allMethods = (methods ++ optInv).map(fd => fd.copy(flags = fd.flags :+ xt.IsMethodOf(id)))
     val allTypeMembers = typeMembers.map(td => td.copy(flags = td.flags :+ xt.IsTypeMemberOf(id)))
 
-    if (sym.toString.contains("AAA") || sym.toString.contains("Abs") || sym.toString.contains("Sub") || sym.toString.contains("Ok")) {
-      println("plop")
-    }
+//    if (sym.toString.contains("AAA") || sym.toString.contains("Abs") || sym.toString.contains("Sub") || sym.toString.contains("Ok")) {
+//      println("plop")
+//    }
 
     val xcd = new xt.ClassDef(
       id,
@@ -777,8 +778,6 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(using overrid
     (xcd, allMethods, allTypeMembers)
   }
 
-  // TODO: Ensures it works for local classes too.
-  // TODO: Do not forget to add using dctx when called
   private def extractAccessor(classType: xt.ClassType | xt.LocalClassType, vd: tpd.ValDef, fieldPos: Int)(using dctx: DefContext, cds: ClassDefs): Seq[xt.FunDef] = {
     val vdSym = vd.symbol
     val retType = extractType(vd.tpt)
