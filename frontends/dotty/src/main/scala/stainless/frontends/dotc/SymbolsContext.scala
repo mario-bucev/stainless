@@ -15,12 +15,12 @@ import scala.collection.mutable.{ Map => MutableMap }
 class SymbolsContext {
 
   /** Get the identifier associated with the given [[sym]], creating a new one if needed. */
-  def fetch(sym: Symbol)(implicit ctx: Context): SymbolIdentifier = synchronized {
+  def fetch(sym: Symbol, asAccessor: Boolean)(implicit ctx: Context): SymbolIdentifier = synchronized {
     val path = getPath(sym)
-    s2i.getOrElse(path, {
+    s2i.getOrElseUpdate((path, asAccessor), {
       val overrides = sym.allOverriddenSymbols
       val top = if (overrides.nonEmpty) overrides.toSeq.last else sym
-      val symbol = s2s.getOrElse(top, {
+      val symbol = s2s.getOrElseUpdate((top, asAccessor), {
         val name: String =
           if (sym is TypeParam) {
             sym.showName
@@ -31,21 +31,34 @@ class SymbolsContext {
               .map(name => if (name.startsWith("_$")) name.drop(2) else name)
               .mkString(".")
           }
-
-        val res = ast.Symbol(name)
-        s2s(top) = res
-        res
+        ast.Symbol(name)
       })
-
-      val res = SymbolIdentifier(symbol)
-      s2i(path) = res
-      res
+      SymbolIdentifier(symbol)
     })
   }
 
   def fetchParam(sym: Symbol)(implicit ctx: Context): SymbolIdentifier = synchronized {
+    /*
     val id = fetch(sym)
     params.getOrElse(id, {
+      // not freshening: "key not found: z" dans MethodLifting (GoodInitialization) parce que val x et def x ont le meme symbol
+      val res = SymbolIdentifier(id.symbol)
+      params(id) = res
+      res
+    })
+    */
+    /*
+    val id = fetch(sym)
+    // id.symbol: SoundInvariant fails because the overriden x gets the same SymbolIdentifier (it should not)
+    params.getOrElse(id.symbol, {
+      val res = id.freshen
+      params(id.symbol) = res
+      res
+    })
+    */
+    val id = fetch(sym, false)
+    params.getOrElse(id, {
+//      val res = id.freshen
       val res = SymbolIdentifier(id.symbol)
       params(id) = res
       res
@@ -54,7 +67,7 @@ class SymbolsContext {
 
   /** Get the identifier for the class invariant of [[sym]]. */
   def fetchInvIdForClass(sym: Symbol)(implicit ctx: Context): SymbolIdentifier = synchronized {
-    val id = fetch(sym)
+    val id = fetch(sym, false)
     invs.getOrElse(id, {
       val res = SymbolIdentifier(invSymbol)
       invs(id) = res
@@ -67,16 +80,17 @@ class SymbolsContext {
   }
 
   /** Mapping from [[Symbol]] (or rather: its path) and the stainless identifier. */
-  private val s2i = MutableMap[String, SymbolIdentifier]()
+  private val s2i = MutableMap[(String, Boolean), SymbolIdentifier]()
 
   /** Mapping useful to use the same top symbol mapping. */
-  private val s2s = MutableMap[Symbol, ast.Symbol]()
+  private val s2s = MutableMap[(Symbol, Boolean), ast.Symbol]()
 
   /** Mapping for class invariants: class' id -> inv's id. */
   private val invs = MutableMap[SymbolIdentifier, SymbolIdentifier]()
   private val invSymbol = stainless.ast.Symbol("inv")
 
   /** Mapping for getter identifiers. */
+//  private val params = MutableMap[ast.Symbol, SymbolIdentifier]()
   private val params = MutableMap[SymbolIdentifier, SymbolIdentifier]()
 }
 

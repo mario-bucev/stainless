@@ -28,6 +28,7 @@ trait ASTExtractors {
   def classFromName(nameStr: String): ClassSymbol = requiredClass(typeName(nameStr))
   def moduleFromName(nameStr: String): TermSymbol = requiredModule(typeName(nameStr))
 
+  // Classes we ignore when considering the parents of a given class.
   lazy val ignoredClasses = Set(
     defn.ObjectType,
     defn.SerializableType,
@@ -825,17 +826,60 @@ trait ASTExtractors {
       }
     }
 
-    object ExFieldDef {
-      /** Matches a definition of a strict field */
-      def unapply(tree: tpd.ValDef): Option[(Symbol, Type, tpd.Tree)] = {
-        val sym = tree.symbol
-        tree match {
-          case vd @ ValDef(_, tpt, _) if (
-            // TODO: Actually, no?
-            // TODO: Comment why it's different from Scalac
+    object ExCtorFieldDef {
+      /** Matches a definition of a strict and immutable field that is part of the constructor parameters. */
+      def unapply(vd: tpd.ValDef): Option[(Symbol, Type, tpd.Tree)] = {
+        val sym = vd.symbol
+        vd match {
+          case ValDef(_, tpt, _) if
+            ((sym is CaseAccessor) || (sym is ParamAccessor)) &&
+            !(sym is Synthetic) && !(sym is Mutable) // Note: Check for not being lazy omitted because a ctor field cannot be lazy
+            => Some((sym, tpt.tpe, vd.rhs))
+
+          case _ => None
+        }
+      }
+    }
+
+    object ExCtorMutableFieldDef {
+      /** Matches a definition of a strict and mutable field that is part of the constructor parameters. */
+      def unapply(vd: tpd.ValDef): Option[(Symbol, Type, tpd.Tree)] = {
+        val sym = vd.symbol
+        vd match {
+          case ValDef(_, tpt, _) if
+            ((sym is CaseAccessor) || (sym is ParamAccessor)) &&
+            !(sym is Synthetic) && (sym is Mutable)
+            => Some((sym, tpt.tpe, vd.rhs))
+
+          case _ => None
+        }
+      }
+    }
+
+    object ExNonCtorFieldDef {
+      /** Matches a definition of a strict and immutable field that is not part of the constructor parameters. */
+      def unapply(vd: tpd.ValDef): Option[(Symbol, Type, tpd.Tree)] = {
+        val sym = vd.symbol
+        vd match {
+          case ValDef(_, tpt, _) if
             !(sym is CaseAccessor) && !(sym is ParamAccessor) &&
             !(sym is Synthetic) && !(sym is Mutable) && !(sym is Lazy)
-          ) => Some((sym, tpt.tpe, vd.rhs))
+            => Some((sym, tpt.tpe, vd.rhs))
+
+          case _ => None
+        }
+      }
+    }
+
+    object ExNonCtorMutableFieldDef {
+      def unapply(vd: tpd.ValDef): Option[(Symbol, Type, tpd.Tree)] = {
+        val sym = vd.symbol
+        vd match {
+          case ValDef(_, tpt, _) if
+            !(sym is CaseAccessor) && !(sym is ParamAccessor) &&
+            // Since a lazy can't be mutable (and vice-versa), we do not need to check the Mutable flag.
+            !(sym is Synthetic) && (sym is Mutable)
+            => Some((sym, tpt.tpe, vd.rhs))
 
           case _ => None
         }
@@ -847,30 +891,10 @@ trait ASTExtractors {
       def unapply(vd: tpd.ValDef): Option[(Symbol, Type, tpd.Tree)] = {
         val sym = vd.symbol
         vd match {
-          case ValDef(name, tpt, _) if (
-            // TODO: Actually, no?
-            // TODO: Comment why it's different from Scalac
+          case ValDef(_, tpt, _) if
             !(sym is CaseAccessor) && !(sym is ParamAccessor) &&
-            // Since a lazy can't be mutable, no need to check the Mutable flag.
             !(sym is Synthetic) && (sym is Lazy)
-          ) =>
-            Some((sym, tpt.tpe, vd.rhs))
-          case _ => None
-        }
-      }
-    }
-
-    object ExMutableFieldDef {
-      def unapply(tree: tpd.ValDef): Option[(Symbol, Type, tpd.Tree)] = {
-        val sym = tree.symbol
-        tree match {
-          case ValDef(_, tpt, _) if (
-            // TODO: Actually, no?
-            // TODO: Comment why it's different from Scalac
-            !(sym is CaseAccessor) && !(sym is ParamAccessor) &&
-            !(sym is Synthetic) && (sym is Mutable)
-          ) => Some((sym, tpt.tpe, tree.rhs))
-
+            => Some((sym, tpt.tpe, vd.rhs))
           case _ => None
         }
       }
@@ -881,40 +905,37 @@ trait ASTExtractors {
         * Matches against a simple `dd` that may have type parameter and has at most one ValDef clause.
         * That is, `dd` is of the form:
         *     ddName[T1, T2, ...](val x_1, val x_2, ...)
-        *           (may be empty)     (may be empty)
+        *          (may be empty)    (may be empty)
         * and not of the general form:
         *     ddName[T1, T2, ...](val x_11, val x_12, ...)(val x_21, val x_22, ...)(...)
         */
       def unapply(dd: tpd.DefDef): Option[(TermName, List[tpd.TypeDef], List[tpd.ValDef], Tree[Type], tpd.Tree)] = dd match {
-        case dd@DefDef(name, _, tpt, _) if (dd.termParamss.size <= 1) => // At most one ValDef clause
+        case dd@DefDef(name, _, tpt, _) if dd.termParamss.size <= 1 => // At most one ValDef clause
           Some((name, dd.leadingTypeParams, dd.termParamss.flatten, tpt, dd.rhs))
         case _ => None
       }
     }
 
-    // TODO: il faut spécifier que "Mutable fields in traits or abstract classes cannot have default values"
-    // TODO: quid d'une classe qui a une var qui n'est pas ctor-field? dans ce cas, on aura !isCtorField et pas de rhs!!! cela va etre traité comme setter abstrait...
-    //    aparamment, leur RHS est ()
-    object ExFieldAccessorFunction {
-      /** Matches the accessor function of a non-ctor field */
-      def unapply(dd: tpd.DefDef): Option[(Symbol, Type, tpd.ValDef, tpd.Tree)] = dd match {
+    object ExFieldSetterFunction {
+      /** Matches the setter function of a non-ctor field */
+      def unapply(dd: tpd.DefDef): Option[(Symbol, Symbol, Type, tpd.ValDef, tpd.Tree)] = dd match {
         case ExDefDefSimple(name, _, List(param), tpt, _) if (
           name.isSetterName &&
           (dd.symbol is Accessor) && !(dd.symbol is Lazy)
         ) =>
-          val underlying = dd.symbol.underlyingSymbol
-          val isCtorField = (underlying is ParamAccessor) || (underlying is CaseAccessor)
+          val fieldSymbol = dd.symbol.underlyingSymbol
+          val isCtorField = (fieldSymbol is ParamAccessor) || (fieldSymbol is CaseAccessor)
           val rhs =
             if (isCtorField && dd.rhs.isEmpty) {
-              // tpd.Ident(underlying.termRef)
-              val cls = underlying.owner.asClass
-              val fieldSel = tpd.Select(tpd.This(cls), underlying.name)
+              // tpd.Ident(fieldSymbol.termRef)
+              val cls = fieldSymbol.owner.asClass
+              val fieldSel = tpd.Select(tpd.This(cls), fieldSymbol.name)
               val paramIdent = tpd.Ident(param.symbol.termRef)
               tpd.Assign(fieldSel, paramIdent)
             }
             else dd.rhs
-          Some((dd.symbol, tpt.tpe, param, rhs))
-//          if ((underlying is ParamAccessor) || (underlying is CaseAccessor)) None
+          Some((dd.symbol, fieldSymbol, tpt.tpe, param, rhs))
+//          if ((fieldSymbol is ParamAccessor) || (fieldSymbol is CaseAccessor)) None
 //          else Some((dd.symbol, tpt.tpe, param, dd.rhs))
         case _ => None
       }

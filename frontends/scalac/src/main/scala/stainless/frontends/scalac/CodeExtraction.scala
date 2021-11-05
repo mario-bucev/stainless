@@ -442,6 +442,10 @@ trait CodeExtraction extends ASTExtractors {
     var methods: Seq[xt.FunDef]      = Seq.empty
     var typeMembers: Seq[xt.TypeDef] = Seq.empty
 
+    if (sym.toString.contains("AAA") || sym.toString.contains("Abs") || sym.toString.contains("Sub") || sym.toString.contains("Ok")) {
+      println("plop0")
+    }
+
     for ((d, i) <- cd.impl.body.zipWithIndex) d match {
       case EmptyTree =>
         // ignore
@@ -524,6 +528,10 @@ trait CodeExtraction extends ASTExtractors {
 
     val allMethods = (methods ++ optInv).map(fd => fd.copy(flags = fd.flags :+ xt.IsMethodOf(id)))
     val allTypeMembers = typeMembers.map(td => td.copy(flags = td.flags :+ xt.IsTypeMemberOf(id)))
+
+    if (sym.toString.contains("AAA") || sym.toString.contains("Abs") || sym.toString.contains("Sub") || sym.toString.contains("Ok")) {
+      println("plop")
+    }
 
     val xcd = new xt.ClassDef(
       id,
