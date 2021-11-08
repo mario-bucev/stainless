@@ -161,7 +161,7 @@ trait Trees extends throwing.Trees { self =>
 
         if (remainingAbstract.nonEmpty) {
           throw NotWellFormedException(cd,
-            Some("abstract methods " + remainingAbstract.map(_.name).mkString(", ") + " were not overridden by a method, a lazy val, or a constructor parameter"))
+            Some("abstract methods " + remainingAbstract.map(_.name).toList.sorted.mkString(", ") + " were not overridden by a method, a lazy val, or a constructor parameter"))
         }
       }
 

@@ -1,0 +1,3 @@
+[ Error  ] Duplicate `measure` specification.
+             def decreq(x: BigInt): BigInt = {
+                                             ^...

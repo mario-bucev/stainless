@@ -145,6 +145,7 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
         // TODO: Can't be tested at runtime
         case vd @ ValDef(_, _, ExCall(_, c, _, _)) if /*isDefaultGetter(c) && */ c.hasAnnotation(ghostAnnotation) =>
           sym.addAnnotation(ghostAnnotation)
+          throw new IllegalStateException("This case is needed")
         case _ => ()
       }
       else if (isCopy || isApply) {
@@ -183,13 +184,12 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
 
     override def traverse(tree: tpd.Tree)(using ctx: DottyContext): Unit = {
       val sym = tree.symbol
-      val x = 3
       tree match {
         case Ident(_) if sym.hasAnnotation(ghostAnnotation) && !ghostContext =>
-          reportError(tree.sourcePos, s"Cannot access a ghost symbol outside of a ghost context. [ $tree in ${ctx.owner} ]")
+          reportError(tree.sourcePos, s"Cannot access a ghost symbol outside of a ghost context. [ ${tree.show} in ${ctx.owner} ]")
 
         case Select(qual, _) if sym.hasAnnotation(ghostAnnotation) && !ghostContext =>
-          reportError(tree.sourcePos, s"Cannot access a ghost symbol outside of a ghost context. [ $tree in ${ctx.owner} ]")
+          reportError(tree.sourcePos, s"Cannot access a ghost symbol outside of a ghost context. [ ${tree.show} in ${ctx.owner} ]")
           traverseChildren(tree)
 
         case m: tpd.MemberDef  =>
@@ -291,7 +291,7 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
       val tyAcc = new TypeAccumulator[Set[(Type, String)]] {
         override def apply(acc: Set[(Type, String)], tp: Type): Set[(Type, String)] = {
           val repl =
-            if (stainlessReplacement.contains(tp.dealias.typeSymbol))
+            if (stainlessReplacement.contains(tp.typeSymbol))
               Set(tp -> stainlessReplacement(tp.typeSymbol))
             else Set.empty
           foldOver(acc ++ repl, tp)
@@ -299,7 +299,7 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
       }
 
       for ((tp, replacement) <- tyAcc(Set.empty, tpe)) {
-        reportError(pos, s"Scala API `$tp` is not directly supported, please use `$replacement` instead.")
+        reportError(pos, s"Scala API `${tp.show}` is not directly supported, please use `$replacement` instead.")
       }
     }
 
@@ -358,7 +358,7 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
           if (parents.length > 1) {
             reportError(tree.sourcePos, s"Stainless supports only simple type hierarchies: Classes can only inherit from a single class/trait")
           }
-
+          traverse(template.constr)
           template.body.foreach {
             case nested @ ExClassDef() =>
               reportError(nested.sourcePos, "Classes can only be defined at the top-level, within objects, or within methods")
@@ -366,11 +366,9 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
           }
 
         case dd @ DefDef(_, _, _, _) if sym.isConstructor =>
-          /*
           // TODO: what is this?
-          if (dd.termParamss.flatten.exists(p => !sym.owner.info.member(p.name).isAccessor))
+          if (dd.termParamss.flatten.exists(p => !(sym.owner.info.member(p.name).symbol isOneOf(CaseAccessor | ParamAccessor))))
             reportError(tree.sourcePos, "Non-field constructor parameters are not allowed in Stainless.")
-          */
           if (dd.termParamss.size > 1)
             reportError(tree.sourcePos, "Multi-clauses classes are not allowed in Stainless.")
           if (!dd.termParamss.flatten.isEmpty && (sym.owner isOneOf AbstractOrTrait))
@@ -381,7 +379,7 @@ class FragmentChecker(inoxCtx: inox.Context)(using override val dottyCtx: DottyC
           // recur only inside `dd.rhs`, as parameter/type parameters have been checked already in `checkType`
           traverse(dd.rhs)
 
-        case vd @ ValDef(_, _, _) if sym.owner.isClass && !(sym.owner isOneOf AbstractOrTrait) && (sym is Mutable) && !(sym is CaseAccessor) && !(sym is ParamAccessor) => // TODO: ParamAccessor added
+        case vd @ ValDef(_, _, _) if sym.owner.isClass && !(sym.owner isOneOf AbstractOrTrait) && (sym is Mutable) && !(sym.isOneOf(CaseAccessor | ParamAccessor)) => // TODO: ParamAccessor added
           reportError(tree.sourcePos, "Variables are only allowed within functions and as constructor parameters in Stainless.")
 
         case Apply(fun, List(arg)) if sym == StainlessOld =>

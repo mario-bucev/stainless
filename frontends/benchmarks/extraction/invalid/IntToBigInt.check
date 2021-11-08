@@ -1,0 +1,3 @@
+[ Error  ] Conversion from Int to BigInt
+             def g(i: Int) = f(i)
+                               ^

@@ -1,0 +1,7 @@
+[ Error  ] Abstract values `x` must be overridden with fields in concrete subclass
+             case class AbsInvalid() extends Abs {
+                        ^
+[ Error  ] Not well formed definition case class AbsInvalid extends Abs
+	because abstract methods BadOverride1.Abs.x were not overridden by a method, a lazy val, or a constructor parameter
+             case class AbsInvalid() extends Abs {
+                        ^

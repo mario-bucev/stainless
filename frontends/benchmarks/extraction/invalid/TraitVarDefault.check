@@ -1,0 +1,3 @@
+[ Error  ] Mutable fields in traits or abstract classes cannot have default values
+               var v = BigInt(0)
+               ^^^^^^^^^^^^^^^^^

@@ -1,0 +1,3 @@
+[ Error  ] Illegal passing of aliased parameters @DropVCs c1 (with target: Target(c1, None, )) and @DropVCs c1 (with target: Target(c1, None, ))
+               g(c1, c2)
+               ^^^^^^^^^

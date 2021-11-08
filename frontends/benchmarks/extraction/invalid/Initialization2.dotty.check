@@ -1,0 +1,7 @@
+[ Error  ] Not well formed definition @field
+@fieldDefPosition(8)
+@method(Hello)
+def message: Int = this.answer + 3
+	because field `message` can only refer to previous fields, not to `answer`
+               val message = answer + 3
+                   ^

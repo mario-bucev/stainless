@@ -1,0 +1,4 @@
+[ Error  ] Not well formed definition case class Bar extends Foo
+	because abstract methods MissingAbstractOverride.Foo.test, MissingAbstractOverride.Foo.test2 were not overridden by a method, a lazy val, or a constructor parameter
+             case class Bar() extends Foo
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

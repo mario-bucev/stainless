@@ -3,6 +3,8 @@
 package stainless
 package frontend
 
+import scala.util.control.NonFatal
+
 /**
  * Provide a generic implementation for frontends that require a thread-based
  * environment to be non-blocking.
@@ -25,11 +27,12 @@ abstract class ThreadedFrontend(callback: CallBack, ctx: inox.Context) extends F
     assert(!isRunning)
 
     val runnable = new Runnable {
-      override def run(): Unit = {
+      override def run(): Unit = try {
         exceptions.clear()
         initRun()
         callback.beginExtractions()
         onRun()
+      } finally {
         callback.endExtractions()
         onEnd()
       }

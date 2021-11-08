@@ -1,0 +1,7 @@
+[ Error  ] Not well formed definition @field
+@fieldDefPosition(8)
+@method(NoThis)
+def nothis: Int = this.f
+	because field `nothis` can only refer to previous fields, not to `g`
+               val nothis = f()
+                   ^

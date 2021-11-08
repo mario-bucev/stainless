@@ -1,0 +1,3 @@
+[ Error  ] Abstract values `x` must be overridden with fields in concrete subclass
+             case class AbsInvalid() extends Abs {
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...

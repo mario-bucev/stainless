@@ -16,7 +16,6 @@ import core.Symbols.*
 import core.Types.*
 import core.Flags.*
 import core.Annotations.*
-import common.ClassDefs
 import util.SourcePosition
 
 import scala.collection.mutable.Map as MutableMap
@@ -496,80 +495,6 @@ trait ASTExtractors {
             println("TODO: verify what's this: "+arg)
             Some(arg)
         }
-        case _ => None
-      }
-    }
-
-    // TODO: Seems to be useless after all
-    // TODO: Comment
-    // TODO: Also see how things behave for implicit class not extending anyval and the extension syntax from Scala 3
-    // TODO: Refer to transform.ExtensionMethods
-    object ExExtensionMethodCall {
-      import tpd.TreeOps
-      import transform.ExplicitOuter
-
-      def unapply(tree: tpd.Tree)(using cds: ClassDefs): Option[(tpd.Tree, Symbol, Seq[tpd.Tree], Seq[tpd.Tree])] = tree match {
-        case c@ExCall(None, sym, tps, thiss :: args) if (sym.name is NameKinds.ExtMethName) =>
-          val origClsSym = sym.denot.owner.denot.companionClass
-          val origClsDef = cds.defs.find(_.symbol eq origClsSym).get
-          val origMethDef = origClsDef.rhs.asInstanceOf[tpd.Template].body.collectFirst {
-            case dd@DefDef(nme, _, _, _) if nme eq sym.name.toTermName.underlying => dd
-          }.get
-          val origNbTps = origMethDef.leadingTypeParams.size
-          val origNbArgs = origMethDef.termParamss.flatten.size
-          Some(thiss, origMethDef.symbol, tps.take(origNbTps), args)
-
-        // TODO: method nonEmpty$extension, its symbol is not tagged as an extension method (it's the impl. after all?)
-        // TODO: Why ExtMethName and not UniqueExtMethName ??
-        // TODO: Also inlines ensuring & al...
-        // sym.name.toString.contains("nonEmpty")
-        // TODO: What about curried stuff??? The ExCall is likely to pick it up first!!!
-        /*case c@ExCall(_, sym, _, _) if (sym.name is NameKinds.ExtMethName) =>
-          // val tayst = sym.moduleClass.asClass
-          val clsSym = sym.denot.owner.asClass
-          val tm = new tpd.TreeMap {
-            override def transform(tree: tpd.Tree)(using DottyContext): tpd.Tree = tree match {
-              case i@Ident(nme) if nme eq sym.name =>
-                val r1 = tpd.desugarIdent(i)
-                val r2 = i.underlying
-                val dasIchSoll = tpd.ref(clsSym.denot.companionModule).select(nme)
-//                val r3 = ExplicitOuter.OuterOps(dottyCtx).path(i, tpd.This(clsSym).tpe.classSymbol)
-//                println(r1)
-//                println(r2)
-//                println(dasIchSoll)
-//                println(r3)
-                dasIchSoll
-              case _ => super.transform(tree)
-            }
-          }
-          // TODO: Il faut replacer ident avec un select sur le module val SetOps
-          val res = tm.transform(c)
-          // TODO: Yikes
-          if (res eq c) None
-          else Some(res)*/
-        /*
-        case Apply(ta@TypeApply(Ident(name), tps), args) if (ta.symbol.name is NameKinds.ExtMethName) =>
-          val clsSym = ta.symbol.denot.owner.asClass
-//          val res = tpd.TypeApply(clsSym.typeRef, tps)
-          ???
-        */
-        /*
-        case c@ExCall(None, sym, tps, args) if (sym.name is NameKinds.ExtMethName) =>
-          // TODO: SetOps$ linkedClass gives SetOps, so no?
-          val clsSym = sym.denot.owner.asClass
-//          val origClassInfo = sym.denot.owner.asClass.classDenot.classInfo
-//          val methSym = origClassInfo.decls.lookup(sym.name)
-          val clsDef = cds.defs.find(_.symbol eq clsSym).getOrElse(sys.error("TODO"))
-          val template = clsDef.rhs.asInstanceOf[tpd.Template]
-          val methDef = template.body.collectFirst {
-            case d@DefDef(nme, _, _, _) if nme == sym.name => d
-          }.getOrElse(sys.error("TODO"))
-//          val wot = typer.Inliner.inlineCall(tree)
-          val inl = new Inliner(tree, methDef.rhs)
-          val res = inl.inlined(tree)
-//          val methDef = clsDef.rhs.
-          Some(res.asInstanceOf[tpd.Inlined].expansion)
-        */
         case _ => None
       }
     }

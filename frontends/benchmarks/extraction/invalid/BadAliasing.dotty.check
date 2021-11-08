@@ -1,0 +1,3 @@
+[ Error  ] Illegal aliasing: a
+               a.x = 0
+               ^

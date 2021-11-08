@@ -15,16 +15,20 @@ import extraction.xlang.{trees => xt}
 import frontend.{CallBack, Frontend, FrontendFactory, ThreadedFrontend, UnsupportedCodeException}
 
 class StainlessExtraction(val inoxCtx: inox.Context,
-                          val callback: CallBack,
-                          val cache: SymbolsContext) extends PluginPhase {
+                          val callback: CallBack) extends PluginPhase {
 
   override val phaseName = "stainless"
   override val runsAfter = Set(Pickler.name) // TODO: Was typer then Pickeler
   override val runsBefore = Set(FirstTransform.name) // TODO: was PatternMatcher
 
+  private val symbolMapping = new SymbolMapping
+
   // TODO: we are overriding MiniPhase#run that is defined as singletonGroup.run. Is this ok?
   override def run(using ctx: DottyContext): Unit = {
-    val extraction = new CodeExtraction(inoxCtx, cache)
+    // Remark: the method `run` is called for each compilation unit (which corresponds more or less to a Scala file)
+    // Therefore, the symbolMapping instances needs to be shared accross compilation unit.
+    // Since `run` is called within the same thread, we do not need to synchronize accesses to symbolMapping.
+    val extraction = new CodeExtraction(inoxCtx, symbolMapping)
     import extraction._
 
     val unit = ctx.compilationUnit
@@ -45,8 +49,8 @@ class StainlessExtraction(val inoxCtx: inox.Context,
     fragmentChecker.checker(tree)
 
     if (!fragmentChecker.hasErrors()) {
-      val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs, _) =
-        try extraction.extract(stats)
+      val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs) =
+        try extraction.extractStatic(stats)
         catch {
           case UnsupportedCodeException(pos, msg) =>
             inoxCtx.reporter.error(pos, msg)

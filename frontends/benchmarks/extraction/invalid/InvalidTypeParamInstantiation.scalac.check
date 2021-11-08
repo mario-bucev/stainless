@@ -1,0 +1,3 @@
+[ Error  ] Cannot instantiate a non-mutable class type parameter T with a mutable type Box
+               val b0 = b
+                   ^

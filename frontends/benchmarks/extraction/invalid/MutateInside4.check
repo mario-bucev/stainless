@@ -1,0 +1,3 @@
+[ Fatal  ] Ambiguous effect CombinedEffect(m.t) on Mut[Thing](thing)
+               resetThing(Mut(thing))
+                          ^^^^^^^^^^

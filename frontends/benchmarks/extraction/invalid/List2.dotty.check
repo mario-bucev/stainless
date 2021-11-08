@@ -1,0 +1,6 @@
+[ Error  ] Scala API `(List2.foobar : => scala.collection.immutable.Nil.type)` is not directly supported, please use `stainless.collection.Nil` instead.
+             def foobar = Nil
+             ^^^^^^^^^^^^^^^^
+[ Error  ] Scala API `(Nil : => collection.immutable.Nil.type)` is not directly supported, please use `stainless.collection.Nil` instead.
+             def foobar = Nil
+                          ^^^

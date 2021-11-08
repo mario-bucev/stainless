@@ -15,10 +15,10 @@ import transform.*
 import typer.*
 import frontend.{CallBack, Frontend, FrontendFactory, ThreadedFrontend}
 
-class DottyCompiler(ctx: inox.Context, callback: CallBack, cache: SymbolsContext) extends Compiler {
+class DottyCompiler(ctx: inox.Context, callback: CallBack) extends Compiler {
   override def phases: List[List[Phase]] = {
     val allOrigPhases = super.phases
-    val stainless = new StainlessExtraction(ctx, callback, cache)
+    val stainless = new StainlessExtraction(ctx, callback)
     val scheduled = Plugins.schedule(allOrigPhases, List(stainless))
     // We only care about the phases preceding Stainless.
     // We drop the rest as we are not interested in the full compilation pipeline
@@ -80,7 +80,6 @@ object DottyCompiler {
 
     override def apply(ctx: inox.Context, compilerArgs: Seq[String], callback: CallBack): Frontend =
       new ThreadedFrontend(callback, ctx) {
-        val cache = new SymbolsContext
         val args = {
           // TODO: Explain this mess
           // Attempt to find where the scala libs are.
@@ -94,7 +93,7 @@ object DottyCompiler {
           val res = allCompilerArguments(ctx, compilerArgs) ++ flags
           res
         }
-        val compiler: DottyCompiler = new DottyCompiler(ctx, this.callback, cache)
+        val compiler: DottyCompiler = new DottyCompiler(ctx, this.callback)
 
         val driver = new DottyDriver(args, compiler, new SimpleReporter(ctx.reporter))
 

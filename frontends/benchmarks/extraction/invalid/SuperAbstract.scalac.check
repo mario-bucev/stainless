@@ -1,0 +1,3 @@
+[ Error  ] Cannot issue a super call to an abstract method.
+               override def hello = super.hello + 1
+                                    ^^^^^^^^^^^^^^^

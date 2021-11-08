@@ -62,13 +62,9 @@ class TestingGround extends AnyFunSuite with InputUtils {
       |""".stripMargin)
 
   val tayst3 = List(
-    """sealed abstract class Abs {
-      |  // require(x != 0)
-      |  // val x: Int
-      |  // val y: Int
-      |  def zzzz: Int
+    """case class AbsValid(x: Int) {
+      |  val y = x + 12
       |}
-      |case class AbsValid(/*x: Int, y: Int,*/ zzzz: Int) extends Abs
       |""".stripMargin)
 
   val ctx: inox.Context = stainless.TestContext.empty
@@ -84,12 +80,12 @@ class TestingGround extends AnyFunSuite with InputUtils {
   // verification/valid/GoodInitialization.scala
   // extraction/valid/NonGhostUpdate.scala
   // common/src/test/resources/AbstractValOverrides.scala
-  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/verification/valid/GoodInitialization.scala").mkString)
+  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/extraction/invalid/CtorParams.scala").mkString)
 //  lazy val fromFile = List(scala.io.Source.fromFile("frontends/common/src/test/resources/AbstractValOverrides.scala").mkString)
-  val (_, xlangProgram) = load(fromFile)
+  val (_, xlangProgram) = load(tayst3)
   val x = 3
-  val run = verification.VerificationComponent.run(extraction.pipeline)
-  val program = inox.Program(run.trees)(run extract xlangProgram.symbols)
+//  val run = verification.VerificationComponent.run(extraction.pipeline)
+//  val program = inox.Program(run.trees)(run extract xlangProgram.symbols)
 
   import stainless.trees.*
   test("dummy") {

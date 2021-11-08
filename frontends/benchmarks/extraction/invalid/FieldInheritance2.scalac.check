@@ -1,0 +1,7 @@
+[ Error  ] Abstract values `y` must be overridden with fields in concrete subclass
+             case class Bar[X](override val thisIsIt: BigInt) extends Foo[X] {
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...
+[ Error  ] Not well formed definition case class Bar[X](thisIsIt: BigInt) extends Foo[X]
+	because abstract methods FieldInheritance2.Foo.y were not overridden by a method, a lazy val, or a constructor parameter
+             case class Bar[X](override val thisIsIt: BigInt) extends Foo[X] {
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...

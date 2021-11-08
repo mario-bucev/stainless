@@ -1,0 +1,8 @@
+[ Error  ] Not well formed definition @private
+@field
+@fieldDefPosition(1)
+@method(InitA)
+def x: Int = this.y
+	because field `x` can only refer to previous fields, not to `y`
+               val x = y
+               ^^^^^^^^^

@@ -1,0 +1,3 @@
+[ Error  ] Method `widen` must be used with a bitvector type of the same sign
+               v.widen[Int5]
+               ^^^^^^^^^^^^^

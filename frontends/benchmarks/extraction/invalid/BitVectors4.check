@@ -1,0 +1,3 @@
+[ Error  ] Method `narrow` must be used with a bitvector type of a smaller size
+               v.narrow[UInt5]
+               ^^^^^^^^^^^^^^^

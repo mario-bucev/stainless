@@ -21,8 +21,7 @@ class StainlessPlugin extends StandardPlugin {
     val stainlessContext: inox.Context =
       mainHelper.getConfigContext(inox.Options.empty)(using new stainless.PlainTextReporter(Set.empty))
     val cb = stainless.frontend.getCallBack(using stainlessContext)
-    val cache: SymbolsContext = new SymbolsContext
-    val phase = new StainlessExtraction(stainlessContext, cb, cache)
+    val phase = new StainlessExtraction(stainlessContext, cb)
     List(phase)
   }
 }

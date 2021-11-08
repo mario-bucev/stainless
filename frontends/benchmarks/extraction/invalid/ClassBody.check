@@ -1,0 +1,6 @@
+[ Error  ] Only definitions are allowed inside class bodies.
+             "abcdef" // not allowed here
+             ^^^^^^^^
+[ Error  ] Only definitions are allowed inside class bodies.
+             bar(42) // not allowed here
+             ^^^^^^^

@@ -1,0 +1,6 @@
+[ Error  ] Scala API `List[T]` is not directly supported, please use `stainless.collection.List` instead.
+             def foobar[T](l: List[T]) = {
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...
+[ Error  ] Scala API `List[T]` is not directly supported, please use `stainless.collection.List` instead.
+               l.head
+               ^
