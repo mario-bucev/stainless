@@ -5,9 +5,7 @@ package verification
 
 import stainless.utils.YesNoOnly
 
-class TerminationVerificationSuite extends ComponentTestSuite {
-
-  override val component: VerificationComponent.type = VerificationComponent
+class TerminationVerificationSuite extends VerificationComponentTestSuite {
 
   override def configurations = super.configurations.map { seq =>
     Seq(
@@ -20,11 +18,5 @@ class TerminationVerificationSuite extends ComponentTestSuite {
 
   override protected def optionsString(options: inox.Options): String = ""
 
-  testAll("termination/valid") { (report, reporter) =>
-    for ((vc, vr) <- report.vrs) {
-      if (vr.isInvalid) fail(s"The following verification condition was invalid: $vc @${vc.getPos}")
-      if (vr.isInconclusive) fail(s"The following verification condition was inconclusive: $vc @${vc.getPos}")
-    }
-    reporter.terminateIfError()
-  }
+  testPosAll("termination/valid")
 }

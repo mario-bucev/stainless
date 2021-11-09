@@ -5,7 +5,7 @@ package verification
 
 import org.scalatest._
 
-class StrictArithmeticSuite extends ComponentTestSuite {
+class StrictArithmeticSuite extends VerificationComponentTestSuite {
 
   override def configurations = super.configurations.map {
     seq => Seq(optStrictArithmetic(true), optFailEarly(true)) ++ seq
@@ -13,17 +13,9 @@ class StrictArithmeticSuite extends ComponentTestSuite {
 
   override protected def optionsString(options: inox.Options): String = ""
 
-  override val component: VerificationComponent.type = VerificationComponent
+  testPosAll("strictarithmetic/valid")
 
-  testAll("strictarithmetic/valid") { (analysis, reporter) =>
-    for ((vc, vr) <- analysis.vrs) {
-      if (vr.isInvalid) fail(s"The following verification condition was invalid: $vc @${vc.getPos}")
-      if (vr.isInconclusive) fail(s"The following verification condition was inconclusive: $vc @${vc.getPos}")
-    }
-    reporter.terminateIfError()
-  }
-
-  testAll("strictarithmetic/invalid") { (analysis, _) =>
+  testAll("strictarithmetic/invalid") { (analysis, _, _) =>
     val report = analysis.toReport
     assert(report.totalInvalid > 0, "There should be at least one invalid verification condition.")
   }

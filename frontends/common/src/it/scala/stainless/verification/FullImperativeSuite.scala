@@ -7,7 +7,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import extraction.xlang.{ TreeSanitizer, trees => xt }
 
-class FullImperativeSuite extends ComponentTestSuite with inox.MainHelpers {
+class FullImperativeSuite extends VerificationComponentTestSuite with inox.MainHelpers {
 
   override def configurations = super.configurations.map {
     seq => Seq(
@@ -38,7 +38,7 @@ class FullImperativeSuite extends ComponentTestSuite with inox.MainHelpers {
   // This method was copied from the super class and overriden to filter out the 'copy' method from the extracted symbols,
   // since it involves allocations, and that isn't supported yet.
   // TODO: when allocation is supported, remove that overriden implementation.
-  override def testAll(dir: String, recursive: Boolean = false, discard: String => Boolean = _ => false)(block: (component.Analysis, inox.Reporter) => Unit): Unit = {
+  override def testAll(dir: String, recursive: Boolean = false, discard: String => Boolean = _ => false)(block: (component.Analysis, inox.Reporter, xt.UnitDef) => Unit): Unit = {
     require(dir != null, "Function testAll must be called with a non-null directory string")
     val fs = resourceFiles(dir, f => f.endsWith(".scala") && !discard(f), recursive).toList
 
@@ -82,7 +82,7 @@ class FullImperativeSuite extends ComponentTestSuite with inox.MainHelpers {
         val funs = defs.filter(exProgram.symbols.functions contains _).toSeq.filterNot(_.name.startsWith("copy")) // we filter out the copy methods
 
         val report = Await.result(run.execute(funs, exProgram.symbols), Duration.Inf)
-        block(report, ctx.reporter)
+        block(report, ctx.reporter, unit)
       }
     } else {
       given ctx: inox.Context = stainless.TestContext.empty
@@ -127,20 +127,14 @@ class FullImperativeSuite extends ComponentTestSuite with inox.MainHelpers {
           Duration.Inf
         )
 
-        block(report, ctx.reporter)
+        block(report, ctx.reporter, unit)
       }
     }
   }
 
-  testAll("full-imperative/valid") { (report, reporter) =>
-    for ((vc, vr) <- report.vrs) {
-      if (vr.isInvalid) fail(s"The following verification condition was invalid: $vc @${vc.getPos}")
-      if (vr.isInconclusive) fail(s"The following verification condition was inconclusive: $vc @${vc.getPos}")
-    }
-    reporter.terminateIfError()
-  }
+  testPosAll("full-imperative/valid")
 
-  testAll("full-imperative/invalid") { (analysis, _) =>
+  testAll("full-imperative/invalid") { (analysis, _, _) =>
     val report = analysis.toReport
     assert(report.totalInvalid > 0, "There should be at least one invalid verification condition.")
   }

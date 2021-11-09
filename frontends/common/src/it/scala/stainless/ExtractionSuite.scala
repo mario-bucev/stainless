@@ -141,6 +141,8 @@ abstract class ExtractionSuite extends AnyFunSpec with inox.ResourceUtils with I
     }
   }
 
+  // A simple reporter that collect all errors.
+  // Contrarily to TestSilentReporter, this report also extract the line referenced by the error message.
   class NegativeTestReporter extends DefaultReporter(Set.empty) {
     val allErrors = mutable.ArrayBuffer.empty[String]
 

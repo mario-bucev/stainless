@@ -7,9 +7,9 @@ import scala.concurrent.duration._
 
 import org.scalatest._
 
-trait TypeCheckerSuite extends ComponentTestSuite {
+trait TypeCheckerSuite extends VerificationComponentTestSuite {
 
-  override val component: VerificationComponent.type = VerificationComponent
+  // TODO: Get rid of this
   val cacheAllowed: Boolean
 
   override def configurations = super.configurations.map { seq =>
@@ -59,16 +59,9 @@ trait TypeCheckerSuite extends ComponentTestSuite {
       (isScala3 && scala2BitVectors.exists(t => file.endsWith(t)))
   }
 
-  testAll("verification/valid", recursive = true, bitVectorsTestDiscarding) { (analysis, reporter) =>
-    assert(cacheAllowed || analysis.toReport.stats.validFromCache == 0, "no cache should be used for these tests")
-    for ((vc, vr) <- analysis.vrs) {
-      if (vr.isInvalid) fail(s"The following verification condition was invalid: $vc @${vc.getPos}")
-      if (vr.isInconclusive) fail(s"The following verification condition was inconclusive: $vc @${vc.getPos}")
-    }
-    reporter.terminateIfError()
-  }
+  testPosAll("verification/valid", recursive = true, bitVectorsTestDiscarding)
 
-  testAll("verification/invalid") { (analysis, _) =>
+  testAll("verification/invalid") { (analysis, _, _) =>
     val report = analysis.toReport
     assert(report.totalInvalid > 0, "There should be at least one invalid verification condition. " + report.stats)
   }

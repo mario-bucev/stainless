@@ -13,7 +13,7 @@ trait UncheckedSuite extends ComponentTestSuite {
 
   override val component: VerificationComponent.type = VerificationComponent
 
-  testAll("verification/unchecked") { (analysis, _) =>
+  testAll("verification/unchecked") { (analysis, _, _) =>
     val report = analysis.toReport
     assert(report.totalInvalid > 0 || report.totalUnknown > 0,
       "There should be at least one invalid/unknown verification condition.")

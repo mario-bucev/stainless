@@ -58,7 +58,7 @@ class TerminationSuite extends ComponentTestSuite {
       }
   }
 
-  testAll("termination/valid") { (analysis, reporter) =>
+  testAll("termination/valid") { (analysis, reporter, _) =>
     val failures = getResults(analysis).collect {
       case (fd, Some(status)) if !status.isTerminating => fd
     }
@@ -72,7 +72,7 @@ class TerminationSuite extends ComponentTestSuite {
     reporter.terminateIfError()
   }
 
-  testAll("verification/valid") { (analysis, reporter) =>
+  testAll("verification/valid") { (analysis, reporter, _) =>
     val failures = getResults(analysis).collect {
       case (fd, Some(status)) if !status.isTerminating => fd
     }
@@ -86,7 +86,7 @@ class TerminationSuite extends ComponentTestSuite {
     reporter.terminateIfError()
   }
 
-  testAll("termination/looping") { (analysis, reporter) =>
+  testAll("termination/looping") { (analysis, reporter, _) =>
     import analysis.program.symbols
     import analysis.program.trees._
 

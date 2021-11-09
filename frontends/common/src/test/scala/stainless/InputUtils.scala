@@ -2,15 +2,12 @@
 
 package stainless
 
-import scala.language.existentials
-
 import extraction.xlang.{ trees => xt, TreeSanitizer }
 import extraction.utils.DebugSymbols
 import frontend.{ CallBack, Recovery, RecoveryResult }
 import utils.CheckFilter
 
 import scala.collection.mutable.ListBuffer
-import scala.language.existentials
 
 import java.io.{ File, BufferedWriter, FileWriter }
 

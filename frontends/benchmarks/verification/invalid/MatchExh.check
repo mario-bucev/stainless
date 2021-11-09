@@ -1,0 +1,3 @@
+20:22 err1 invalid match exhaustiveness
+25:29 err2 invalid match exhaustiveness
+31:31 err3 invalid match exhaustiveness

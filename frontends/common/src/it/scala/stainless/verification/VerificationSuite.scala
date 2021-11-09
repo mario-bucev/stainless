@@ -5,15 +5,10 @@ package verification
 
 import org.scalatest._
 
-trait VerificationSuite extends ComponentTestSuite {
-
-  override val component: VerificationComponent.type = VerificationComponent
+trait VerificationSuite extends VerificationComponentTestSuite {
 
   override def configurations = super.configurations.map { seq =>
-    Seq(
-      optTypeChecker(false),
-      optFailInvalid(true)
-    ) ++ seq
+    Seq(optTypeChecker(false)) ++ seq
   }
 
   override protected def optionsString(options: inox.Options): String = {
@@ -44,19 +39,8 @@ trait VerificationSuite extends ComponentTestSuite {
     case _ => super.filter(ctx, name)
   }
 
-  testAll("verification/valid") { (analysis, reporter) =>
-    assert(analysis.toReport.stats.validFromCache == 0, "no cache should be used for these tests")
-    for ((vc, vr) <- analysis.vrs) {
-      if (vr.isInvalid) fail(s"The following verification condition was invalid: $vc @${vc.getPos}")
-      if (vr.isInconclusive) fail(s"The following verification condition was inconclusive: $vc @${vc.getPos}")
-    }
-    reporter.terminateIfError()
-  }
-
-  testAll("verification/invalid") { (analysis, _) =>
-    val report = analysis.toReport
-    assert(report.totalInvalid > 0, "There should be at least one invalid verification condition. " + report.stats)
-  }
+  // testPosAll("verification/valid")
+  testNegAll("verification/invalid")
 }
 
 class SMTZ3VerificationSuite extends VerificationSuite {

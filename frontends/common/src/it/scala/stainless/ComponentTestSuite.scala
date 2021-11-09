@@ -4,7 +4,6 @@ package stainless
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.language.existentials
 
 import stainless.utils.YesNoOnly
 
@@ -38,7 +37,7 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
   protected def filter(ctx: inox.Context, name: String): FilterStatus = Test
 
   // Note: discarded Scala files will not even be loaded and extracted.
-  def testAll(dir: String, recursive: Boolean = false, discard: String => Boolean = _ => false)(block: (component.Analysis, inox.Reporter) => Unit): Unit = {
+  def testAll(dir: String, recursive: Boolean = false, discard: String => Boolean = _ => false)(block: (component.Analysis, inox.Reporter, xt.UnitDef) => Unit): Unit = {
     require(dir != null, "Function testAll must be called with a non-null directory string")
     val fs = resourceFiles(dir, f => f.endsWith(".scala") && !discard(f), recursive).toList
 
@@ -92,7 +91,7 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
         val funs = defs.filter(exProgram.symbols.functions contains _).toSeq
 
         val report = Await.result(run.execute(funs, exProgram.symbols), Duration.Inf)
-        block(report, ctx.reporter)
+        block(report, ctx.reporter, unit)
       }
     } else {
       val ctx: inox.Context = inox.TestContext.empty
@@ -139,10 +138,8 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
         } (defs).toSeq.filter(exSymbols.functions contains _)
 
         val report = Await.result(run.execute(funs, exSymbols),Duration.Inf)
-
-        block(report, ctx.reporter)
+        block(report, ctx.reporter, unit)
       }
     }
   }
 }
-

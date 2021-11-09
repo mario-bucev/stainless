@@ -5,9 +5,7 @@ package verification
 
 import org.scalatest._
 
-trait DottyVerificationSuite extends ComponentTestSuite {
-
-  val component: VerificationComponent.type = VerificationComponent
+trait DottyVerificationSuite extends VerificationComponentTestSuite {
 
   override def configurations = super.configurations.map {
     seq => optFailInvalid(true) +: seq
@@ -24,15 +22,9 @@ trait DottyVerificationSuite extends ComponentTestSuite {
 
   def folder: String
 
-  testAll(folder) { (analysis, reporter) =>
-    assert(analysis.toReport.stats.validFromCache == 0, "no cache should be used for these tests")
-    for ((vc, vr) <- analysis.vrs) {
-      if (vr.isInvalid) fail(s"The following verification condition was invalid: $vc @${vc.getPos}")
-      if (vr.isInconclusive) fail(s"The following verification condition was inconclusive: $vc @${vc.getPos}")
-    }
-    reporter.terminateIfError()
-  }
+  testPosAll(folder)
 }
+
 /*
 class SMTZ3DottyVerificationSuite extends DottyVerificationSuite {
   override def configurations = super.configurations.map {
