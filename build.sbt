@@ -367,6 +367,7 @@ lazy val `stainless-dotty` = (project in file("frontends/dotty"))
     name := "stainless-dotty",
     frontendClass := "dotc.DottyCompiler",
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % "3.0.2", // % "provided", // TODO: Sort things out with "provided"
+    libraryDependencies += "org.scala-lang" %% "scala3-tasty-inspector" % "3.0.2",
     buildInfoKeys ++= Seq[BuildInfoKey]("useJavaClassPath" -> false),
     // We include Scala library to be certain we also include scala-parser-combinators (which is not shipped with the Scala std library)
     assembly / assemblyOption := (assembly / assemblyOption).value.copy(includeScala = true),
