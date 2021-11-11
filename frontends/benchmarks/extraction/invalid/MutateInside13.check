@@ -1,0 +1,3 @@
+[ Fatal  ] Ambiguous effect CombinedEffect(mut.t) on Mut[Thing[Int]](thing)
+                 val mut = Mut(thing)
+                           ^^^^^^^^^^

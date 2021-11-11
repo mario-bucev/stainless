@@ -1,0 +1,3 @@
+9:15 search invalid array index within bounds
+11:23 search unknown precond. (call search(arr, x, lo, i - 1))
+12:12 search unknown precond. (call search(arr, x, i + 1, hi))

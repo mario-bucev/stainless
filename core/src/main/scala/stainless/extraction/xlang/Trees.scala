@@ -62,6 +62,18 @@ trait Trees extends innerclasses.Trees { self =>
 
     case _ => super.getDeconstructor(that)
   }
+
+
+  /* ========================================
+   *            TREE TRANSFORMERS
+   * ======================================== */
+
+  trait XLangSelfTreeTransformer extends TreeTransformer with StainlessSelfTreeTransformer
+
+  class ConcreteXLangSelfTreeTransformer(override val s: self.type, override val t: self.type)
+    extends XLangSelfTreeTransformer {
+    def this() = this(self, self)
+  }
 }
 
 
@@ -118,6 +130,34 @@ trait Printer extends innerclasses.Printer {
     case _ => super.ppBody(tree)
   }
 }
+
+trait DefinitionTransformer extends innerclasses.DefinitionTransformer {
+  val s: Trees
+  val t: Trees
+
+  def transform(im: s.Import): t.Import = t.Import(im.path, im.isWildcard)
+
+  def transform(ud: s.UnitDef): t.UnitDef =
+    t.UnitDef(
+      ud.id,
+      ud.imports.map(transform),
+      ud.classes,
+      ud.modules.map(transform),
+      ud.isMain
+    )
+
+  def transform(md: s.ModuleDef): t.ModuleDef =
+    t.ModuleDef(
+      md.id,
+      md.imports.map(transform),
+      md.classes,
+      md.functions,
+      md.typeDefs,
+      md.modules.map(transform)
+    )
+}
+
+trait TreeTransformer extends transformers.TreeTransformer with DefinitionTransformer
 
 trait GhostTraverser extends innerclasses.GhostTraverser {
   val trees: Trees

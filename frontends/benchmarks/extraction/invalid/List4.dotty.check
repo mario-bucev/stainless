@@ -1,0 +1,6 @@
+[ Error  ] Scala API `(List4.foobar : => List[Int])` is not directly supported, please use `stainless.collection.List` instead.
+             def foobar = List(1, 2)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+[ Error  ] Scala API `List[Int]` is not directly supported, please use `stainless.collection.List` instead.
+             def foobar = List(1, 2)
+                          ^^^^^^^^^^

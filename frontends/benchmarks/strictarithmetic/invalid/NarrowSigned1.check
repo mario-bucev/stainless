@@ -1,0 +1,2 @@
+6:5 test invalid body assertion: Narrowing too large signed int
+6:5 test unknown body assertion: Narrowing large negative signed int

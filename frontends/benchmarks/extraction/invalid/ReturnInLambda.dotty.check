@@ -1,0 +1,4 @@
+[ Error  ] Found:    Int => Nothing
+Required: Int
+             def f: Int = (x: Int) => return 5
+                          ^

@@ -719,21 +719,21 @@ class TypeChecker(val program: StainlessProgram, val context: inox.Context, val 
         val (tpe, trBody) = inferType(tc2.setPos(body), freshBody)
         (insertFreshLets(Seq(vd), Seq(value), tpe), trValue ++ trBody)
 
-      case Assume(cond, body) =>
-        val tr = checkType(tc.setPos(cond), cond, BooleanType())
+      case a@Assume(cond, body) =>
+        val tr = checkType(tc.setPos(a), cond, BooleanType())
         val (tpe, tr2) = inferType(tc.withTruth(cond), body)
         (tpe, tr ++ tr2)
 
-      case Assert(cond, optErr, body) =>
+      case a@Assert(cond, optErr, body) =>
         val kind = VCKind.fromErr(optErr)
-        val tr = checkType(tc.withVCKind(kind).setPos(cond), cond, TrueBoolean())
+        val tr = checkType(tc.withVCKind(kind).setPos(a), cond, TrueBoolean())
         val (tpe, tr2) = inferType(tc.withTruth(cond), body)
         (tpe, tr ++ tr2)
 
       // NOTE: `require` clauses in functions are type-checked in `checkType(FunDef)`, but since
       // they can also appear in lambdas bodies, they need to be handled here as well.
-      case Require(cond, body) =>
-        val tr = checkType(tc.setPos(cond), cond, BooleanType())
+      case r@Require(cond, body) =>
+        val tr = checkType(tc.setPos(r), cond, BooleanType())
         val (tpe, tr2) = inferType(tc.withTruth(cond), body)
         (tpe, tr ++ tr2)
 
@@ -1082,11 +1082,11 @@ class TypeChecker(val program: StainlessProgram, val context: inox.Context, val 
         checkType(tc.setPos(value).withVCKind(VCKind.CheckType), value, vd.tpe) ++
         checkType(tc2.setPos(body), freshBody, tpe)
 
-      case (Assert(cond, optErr, body), _) =>
+      case (a@Assert(cond, optErr, body), _) =>
         val kind = VCKind.fromErr(optErr)
-        checkType(tc, cond, BooleanType()) ++
-        buildVC(tc.withVCKind(kind).setPos(cond), cond) ++
-        checkType(tc.withTruth(cond), body, tpe)
+        checkType(tc.setPos(a), cond, BooleanType()) ++
+        buildVC(tc.withVCKind(kind).setPos(a), cond) ++
+        checkType(tc.withTruth(cond).setPos(a), body, tpe)
 
       case (m: MatchExpr, _) => checkType(tc, matchToIfThenElse(e, false), tpe)
 
@@ -1100,7 +1100,7 @@ class TypeChecker(val program: StainlessProgram, val context: inox.Context, val 
 
       case (e, RefinementType(vd, prop)) =>
         val (tc2, freshener) = tc.freshBindWithValues(Seq(vd), Seq(e))
-        checkType(tc.withVCKind(VCKind.CheckType), e, vd.tpe) ++ checkType(tc2, freshener.transform(prop), TrueBoolean())
+        checkType(tc.withVCKind(VCKind.CheckType).setPos(e), e, vd.tpe) ++ checkType(tc2.setPos(e), freshener.transform(prop), TrueBoolean())
 
       case (UncheckedExpr(e), tpe) =>
         val (inferredType, tr) = inferType(tc.withEmitVCs(false), e)
@@ -1348,7 +1348,7 @@ class TypeChecker(val program: StainlessProgram, val context: inox.Context, val 
           val refinedReturnType = RefinementType(retArg, postBody)
           val vcKind = if (fd.flags.contains(Law)) VCKind.Law else VCKind.Postcondition
 
-          checkType(tcBody.withVCKind(vcKind), body, refinedReturnType)
+          checkType(tcBody.withVCKind(vcKind).setPos(body), body, refinedReturnType)
         }
     }
 

@@ -1,0 +1,6 @@
+[ Error  ] Abstract values `prop` must be overridden with fields in concrete subclass
+             case class Bar(var stuff: BigInt) extends Foo {
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...
+[ Error  ] Cannot override a `var` accessor with a non-accessor method.
+               def prop_=(y: BigInt): Unit = {
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...

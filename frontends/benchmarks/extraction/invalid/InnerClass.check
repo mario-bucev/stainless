@@ -1,0 +1,9 @@
+[ Error  ] Classes can only be defined at the top-level, within objects, or within methods
+               case class TraitInner()
+               ^^^^^^^^^^^^^^^^^^^^^^^
+[ Error  ] Classes can only be defined at the top-level, within objects, or within methods
+               case class ClassInner()
+               ^^^^^^^^^^^^^^^^^^^^^^^
+[ Error  ] Classes can only be defined at the top-level, within objects, or within methods
+               case class CaseInner()
+               ^^^^^^^^^^^^^^^^^^^^^^

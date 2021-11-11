@@ -1,0 +1,3 @@
+[ Error  ] Only literal arguments are allowed for BigInt.
+             def g(i: Int) = BigInt(i)
+                                    ^

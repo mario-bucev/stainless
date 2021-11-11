@@ -3,6 +3,8 @@
 package stainless
 package frontend
 
+import scala.util.control.NonFatal
+
 /**
  * Provide a generic implementation for frontends that require a thread-based
  * environment to be non-blocking.

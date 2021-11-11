@@ -1,0 +1,5 @@
+[ Error  ] type mismatch;
+ found   : Int => Nothing
+ required: Int
+             def f: Int = (x: Int) => return 5
+                                   ^

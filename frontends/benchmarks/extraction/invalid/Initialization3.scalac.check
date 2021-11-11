@@ -1,0 +1,8 @@
+[ Error  ] Not well formed definition @private
+@field
+@fieldDefPosition(1)
+@method(NoThis)
+def nothis: Boolean = this.h
+	because field `nothis` can only refer to previous fields, not to `nothis`
+               val nothis: Boolean = h()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^

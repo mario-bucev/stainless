@@ -1,0 +1,3 @@
+[ Error  ] Postcondition tries to mutate old(thiss)
+               } ensuring { _ =>
+                            ^^^^...

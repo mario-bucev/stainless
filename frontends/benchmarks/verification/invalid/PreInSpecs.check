@@ -1,0 +1,2 @@
+20:14 invoke invalid precond. (call g(i - BigInt("1")))
+23:13 invoke2 invalid precond. (call g(i))

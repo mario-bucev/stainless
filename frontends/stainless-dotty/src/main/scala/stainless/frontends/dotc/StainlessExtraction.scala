@@ -31,7 +31,7 @@ class StainlessExtraction(inoxCtx: inox.Context, callback: CallBack, cache: Symb
         (FreshIdentifier(unit.source.file.name.replaceFirst("[.][^.]+$", "")), List.empty)
     }
 
-    val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs) = extraction.extractStatic(stats)
+    val (imports, unitClasses, unitFunctions, unitTypeDefs, subs, classes, functions, typeDefs) = extraction.extract(stats)
     assert(unitFunctions.isEmpty, "Packages shouldn't contain functions")
 
     val file = unit.source.file.absolute.path

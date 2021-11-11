@@ -1,0 +1,10 @@
+[ Error  ] Abstract values `prop` must be overridden with fields in concrete subclass
+             case class Bar(var stuff: BigInt) extends Foo {
+                        ^
+[ Error  ] Cannot override a `var` accessor with a non-accessor method.
+               def prop_=(y: BigInt): Unit = {
+                   ^
+[ Error  ] Not well formed definition case class Bar((stuff: BigInt) @var) extends Foo
+	because abstract methods TraitVar1.Foo.prop were not overridden by a method, a lazy val, or a constructor parameter
+             case class Bar(var stuff: BigInt) extends Foo {
+                        ^

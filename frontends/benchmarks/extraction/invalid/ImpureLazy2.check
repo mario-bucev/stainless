@@ -1,0 +1,3 @@
+[ Error  ] Stainless does not support effects in lazy val's on: counter
+                 counter = counter + 1
+                 ^^^^^^^^^^^^^^^^^^^^^...

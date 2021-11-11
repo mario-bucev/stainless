@@ -2,7 +2,7 @@ import stainless.lang._
 
 case class Inner(var int: Int)
 case class Outer(var inner: Inner)
-
+/*
 trait FreshCopy {
   val o: Outer = Outer(Inner(123))
 
@@ -21,3 +21,4 @@ trait FreshCopy {
     assert(o.inner.int == 789)
   }
 }
+*/

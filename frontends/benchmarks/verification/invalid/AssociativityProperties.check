@@ -1,0 +1,2 @@
+19:5 assocNotCommutative invalid postcondition
+24:5 commNotAssociative invalid postcondition

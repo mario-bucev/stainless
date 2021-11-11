@@ -1,0 +1,94 @@
+/* Copyright 2009-2021 EPFL, Lausanne */
+
+package stainless
+package ast
+
+import inox.Options
+import org.scalatest.funsuite.AnyFunSuite
+import stainless.verification.optTypeChecker
+
+class TestingGround extends AnyFunSuite with InputUtils {
+
+  val tayst = List(
+    """import stainless.lang._
+      |import stainless.proof._
+      |import stainless.math._
+      |import BitVectors._
+      |
+      |object Tayst {
+      |  def limsup: Int = ???
+      |}
+      |
+      |case class SomeClass() {
+      |  def helloFriend: Int = {
+      |    Tayst.limsup
+      |  }
+      |  def helloOld5Friend(x: Array[String], i: Int10): Unit = {
+      |    val w = x(i)
+      |    ()
+      |  }
+      |  def helloOld4Friend(x: Int): Unit = {
+      |    val y = Array.fill(x)(x + 1)
+      |    val z = Array(1, 2, 3, 4)
+      |    y(1) = 42
+      |    val w = y.size
+      |    val ww = y.length
+      |    val www = y(3)
+      |    ()
+      |  }
+      |
+      |  def helloOld3Friend(x: Int): Unit = {
+      |    val y = Array.empty[Int]
+      |    val z = Array.empty[String]
+      |    ()
+      |  }
+      |
+      |  def helloOld2Friend(x: Int): Boolean = {
+      |    val y = "13241".bigLength()
+      |    true
+      |  }.holds because { x + x == 4 }
+      |
+      |  def helloOldFriend(x: Int): Boolean = {
+      |    x == 2
+      |  }.holds because { x + x == 4 }
+      |}""".stripMargin)
+
+  val tayst2 = List(
+    """sealed abstract class Abs {
+      |  // require(x != 0)
+      |  val xxxx: Int
+      |}
+      |case class AbsValid(xxxx: Int) extends Abs
+      |""".stripMargin)
+
+  val tayst3 = List(
+    """case class AbsValid(x: Int) {
+      |  val y = x + 12
+      |}
+      |""".stripMargin)
+
+  val ctx: inox.Context = stainless.TestContext.empty
+//  val ctx: inox.Context = stainless.TestContext(Options(Seq(optTypeChecker(true))))
+  import ctx.given
+  // verification/valid/FunctionMapsObj.scala
+  // verification/valid/StateMachine.scala
+  // verification/valid/FunctionMaps.scala
+  // verification/valid/Iterables.scala
+  // verification/valid/ValueClassesInv.scala
+  // verification/invalid/ADTInitialization.scala
+  // verification/valid/MicroTests/Monads1.scala
+  // verification/valid/GoodInitialization.scala
+  // extraction/valid/NonGhostUpdate.scala
+  // common/src/test/resources/AbstractValOverrides.scala
+  lazy val fromFile = List(scala.io.Source.fromFile("frontends/benchmarks/extraction/invalid/CtorParams.scala").mkString)
+//  lazy val fromFile = List(scala.io.Source.fromFile("frontends/common/src/test/resources/AbstractValOverrides.scala").mkString)
+  val (_, xlangProgram) = load(tayst3)
+  val x = 3
+//  val run = verification.VerificationComponent.run(extraction.pipeline)
+//  val program = inox.Program(run.trees)(run extract xlangProgram.symbols)
+
+  import stainless.trees.*
+  test("dummy") {
+    true
+  }
+}

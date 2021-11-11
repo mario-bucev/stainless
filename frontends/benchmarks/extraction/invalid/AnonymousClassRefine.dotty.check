@@ -1,0 +1,3 @@
+[ Error  ] value baz is not a member of AnonymousClassesRefine.Foo - did you mean foo.bar?
+               foo.baz
+                   ^

@@ -4,6 +4,9 @@ package stainless
 package ast
 
 import org.scalatest.funsuite.AnyFunSuite
+import frontend.UnsupportedCodeException
+
+import scala.util.control.NonFatal
 
 class ExplicitNumericPromotionSuite extends AnyFunSuite with InputUtils {
 
@@ -24,7 +27,14 @@ class ExplicitNumericPromotionSuite extends AnyFunSuite with InputUtils {
   test("Catch unsupported expressions") {
     for (u <- unsupported) {
       val ctx = stainless.TestContext.empty
-      assertThrows[Throwable](load(Seq(u))(using ctx))
+      try {
+        load(Seq(u))(using ctx)
+        // load did not throw an exception. It may have reported the error to the reporter
+        assert(ctx.reporter.errorCount == 1)
+      } catch {
+        case uce: UnsupportedCodeException => () // Ok
+        case NonFatal(e) => fail(e)
+      }
     }
   }
 

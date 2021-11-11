@@ -1,0 +1,6 @@
+[ Error  ] Scala API `List[T]` is not directly supported, please use `stainless.collection.List` instead.
+             type MyList[T] = List[T]
+                              ^^^^^^^
+[ Error  ] Scala API `(l : List[T])` is not directly supported, please use `stainless.collection.List` instead.
+               l.head
+               ^^^^^^

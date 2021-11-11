@@ -6,7 +6,7 @@ package verification
 import org.scalatest.funsuite.AnyFunSuite
 
 class InliningSuite extends AnyFunSuite with InputUtils {
-
+  // TODO: Also test with Scala 3 inline keyword
   val source =
     """|import stainless.lang._
        |import stainless.annotation._

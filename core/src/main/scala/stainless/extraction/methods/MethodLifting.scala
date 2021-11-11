@@ -140,7 +140,8 @@ class MethodLifting(override val s: Trees, override val t: oo.Trees)
         val children = cd.children(using symbols)
         val ctrees = children.map(ccd => rec(ccd.id))
 
-        val newOverrides = cd.methods(using symbols).map { fid =>
+        val meths = cd.methods(using symbols)
+        val newOverrides = meths.map { fid =>
           fid.symbol -> Override(id, Some(fid), ctrees.flatMap(_.get(fid.symbol)))
         }.toMap
 
