@@ -62,6 +62,17 @@ trait Trees extends innerclasses.Trees { self =>
 
     case _ => super.getDeconstructor(that)
   }
+
+  /* ========================================
+   *            TREE TRANSFORMERS
+   * ======================================== */
+
+  trait XLangSelfTreeTransformer extends TreeTransformer with StainlessSelfTreeTransformer
+
+  class ConcreteXLangSelfTreeTransformer(override val s: self.type, override val t: self.type)
+    extends XLangSelfTreeTransformer {
+    def this() = this(self, self)
+  }
 }
 
 
@@ -134,5 +145,9 @@ trait TreeDeconstructor extends innerclasses.TreeDeconstructor {
     case _ => super.deconstruct(f)
   }
 }
+
+trait TreeTransformer extends transformers.TreeTransformer with innerclasses.DefinitionTransformer
+
+class ConcreteTreeTransformer(override val s: Trees, override val t: Trees) extends TreeTransformer
 
 class ConcreteTreeDeconstructor(override val s: Trees, override val t: Trees) extends TreeDeconstructor

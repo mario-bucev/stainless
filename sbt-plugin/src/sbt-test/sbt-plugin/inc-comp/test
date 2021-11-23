@@ -1,0 +1,27 @@
+# Base case
+> basic/compile
+> basic/verify
+
+# Introducing new definitions
+$ mkdir basic/src/main/scala/somepackage/nested
+$ copy-file resources/Main1.scala basic/src/main/scala/somepackage/Main.scala
+$ copy-file resources/MyTrait1.scala basic/src/main/scala/somepackage/nested/MyTrait.scala
+> basic/compile
+> basic/verify
+
+# Changing some postconditions in MyTrait
+$ copy-file resources/Main2.scala basic/src/main/scala/somepackage/Main.scala
+$ copy-file resources/MyTrait2.scala basic/src/main/scala/somepackage/nested/MyTrait.scala
+> basic/compile
+> basic/verify
+
+# Adding new definitions in Main
+$ copy-file resources/Main3.scala basic/src/main/scala/somepackage/Main.scala
+> basic/compile
+> basic/verify
+
+# Changing a definition in MyTrait to depend on nested.FancyComputation
+$ copy-file resources/MyTrait4.scala basic/src/main/scala/somepackage/nested/MyTrait.scala
+$ copy-file resources/FancyComputation4.scala basic/src/main/scala/somepackage/nested/FancyComputation.scala
+> basic/compile
+> basic/verify

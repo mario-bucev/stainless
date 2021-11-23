@@ -17,17 +17,18 @@ import frontend.{CallBack, Frontend, FrontendFactory, ThreadedFrontend, Unsuppor
 
 case class ExtractedUnit(file: String, unit: xt.UnitDef, classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef], typeDefs: Seq[xt.TypeDef])
 
+// TODO: Say something about symbolMapping and that StainlessExtraction must be preserved accross all compilation unit
 class StainlessExtraction(val inoxCtx: inox.Context) {
   private val symbolMapping = new SymbolMapping
 
-  def extractUnit(using ctx: DottyContext): Option[ExtractedUnit] = {
+  def extractUnit(using dottyCtx: DottyContext): Option[ExtractedUnit] = {
     // Remark: the method `extractUnit` is called for each compilation unit (which corresponds more or less to a Scala file)
     // Therefore, the symbolMapping instances needs to be shared accross compilation unit.
     // Since `extractUnit` is called within the same thread, we do not need to synchronize accesses to symbolMapping.
     val extraction = new CodeExtraction(inoxCtx, symbolMapping)
     import extraction._
 
-    val unit = ctx.compilationUnit
+    val unit = dottyCtx.compilationUnit
     val tree = unit.tpdTree
     val (id, stats) = tree match {
       case pd @ PackageDef(refTree, lst) =>
@@ -74,6 +75,7 @@ class StainlessExtraction(val inoxCtx: inox.Context) {
 
       Some(ExtractedUnit(file, xtUnit, classes, functions, typeDefs))
     } else {
+      // The errors have been already reported, so there is nothing more to do
       None
     }
   }

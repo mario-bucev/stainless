@@ -375,7 +375,7 @@ lazy val `stainless-dotty` = (project in file("frontends/dotty"))
   .settings(noPublishSettings)
   .settings(
     name := "stainless-dotty",
-    frontendClass := "dotc.DottyCompiler",
+    frontendClass := "dotc.standalone.DottyCompiler",
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % frontendDottyVersion,
     buildInfoKeys ++= Seq[BuildInfoKey]("useJavaClassPath" -> false),
     // We include Scala library to be certain we also include scala-parser-combinators (which is not shipped with the Scala std library)

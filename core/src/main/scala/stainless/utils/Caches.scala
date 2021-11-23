@@ -58,6 +58,13 @@ object Caches {
     getSubFile(cacheDir, filename)
   }
 
+  def getCacheSubdir(ctx: inox.Context, subdirName: String): File = {
+    val cacheDir = ctx.options.findOptionOrDefault(optCacheDir).getAbsoluteFile
+    val subdir = new File(cacheDir, subdirName)
+    subdir.mkdirs()
+    subdir
+  }
+
   private def getSubFile(dir: File, filename: String): File = {
     dir.mkdirs()
     assert(dir.isDirectory, s"Not a directory: ${dir.getAbsolutePath}")

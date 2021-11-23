@@ -4,14 +4,14 @@ package stainless
 package frontends.dotc
 
 import scala.language.implicitConversions
-
-import dotty.tools.dotc.core.Flags._
-import dotty.tools.dotc.core.Symbols._
-import dotty.tools.dotc.core.Contexts._
-import dotty.tools.dotc.transform.SymUtils._
+import dotty.tools.dotc.core.Flags.*
+import dotty.tools.dotc.core.Symbols.*
+import dotty.tools.dotc.core.Contexts.*
+import dotty.tools.dotc.core.Names.TypeName
+import dotty.tools.dotc.transform.SymUtils.*
 import stainless.ast.SymbolIdentifier
 
-import scala.collection.mutable.{ Map => MutableMap }
+import scala.collection.mutable.Map as MutableMap
 
 class SymbolMapping {
   import SymbolMapping._
@@ -27,15 +27,16 @@ class SymbolMapping {
   private val s2sEnumType = MutableMap[Symbol, SymbolIdentifier]()
 
   /** Get the identifier associated with the given [[sym]], creating a new one if needed. */
-  def fetch(sym: Symbol, mode: FetchingMode)(using Context): SymbolIdentifier = mode match {
+  def fetch(sym: Symbol, mode: FetchingMode)(using dottyCtx: Context): SymbolIdentifier = mode match {
     case Plain =>
       s2s.getOrElseUpdate(sym, {
         val overrides = sym.allOverriddenSymbols.toSeq
         val top = overrides.lastOption.getOrElse(sym)
         if (top eq sym) {
-          SymbolIdentifier(ast.Symbol(symFullName(sym)))
+          newSymbol(sym)
         } else {
-          SymbolIdentifier(fetch(top, Plain).symbol)
+          // TODO: identifier must include the sym owner, but do we need the full path? After all, the symbol is here for that...
+          new SymbolIdentifier(newIdentifier(sym), fetch(top, Plain).symbol)
         }
       })
     case FieldAccessor =>
@@ -43,18 +44,18 @@ class SymbolMapping {
         val overrides = sym.allOverriddenSymbols.toSeq
         val top = overrides.lastOption.getOrElse(sym)
         if (top eq sym) {
-          SymbolIdentifier(ast.Symbol(symFullName(sym)))
+          newSymbol(sym)
         } else {
           val recMode =
             if (top.isField) FieldAccessor
             else Plain
-          SymbolIdentifier(fetch(top, recMode).symbol)
+          new SymbolIdentifier(newIdentifier(sym), fetch(top, recMode).symbol)
         }
       })
     case EnumType =>
       s2sEnumType.getOrElseUpdate(sym, {
         assert(sym.allOverriddenSymbols.isEmpty)
-        SymbolIdentifier(ast.Symbol(symFullName(sym)))
+        newSymbol(sym)
       })
   }
 
@@ -67,14 +68,27 @@ class SymbolMapping {
       res
     })
   }
-}
 
-object SymbolMapping {
+  private def newIdentifier(sym: Symbol)(using dottyCtx: Context): Identifier =
+    FreshIdentifier(
+      if (sym is Param) sym.showName
+      else s"${sym.owner.showFullName}.${sym.showName}")
 
-  enum FetchingMode {
-    case Plain
-    case FieldAccessor
-    case EnumType
+  private def newSymbol(sym: Symbol)(using dottyCtx: Context): SymbolIdentifier = {
+    val iden = newIdentifier(sym)
+    val stainlessSym = {
+      val suffix =
+        if (sym is Method) {
+          val params = sym.signature.paramsSig.collect {
+            case tn: TypeName => tn.mangledString
+          }
+          s"(${params.mkString(",")})${sym.signature.resSig.mangledString}"
+        } else ""
+      ast.Symbol(
+        if (sym is Param) sym.showName
+        else s"${sym.showFullName}$suffix")
+    }
+    new SymbolIdentifier(iden, stainlessSym)
   }
 
   private def symFullName(sym: Symbol)(using Context): String =
@@ -87,4 +101,12 @@ object SymbolMapping {
         .map(name => if (name.startsWith("_$")) name.drop(2) else name)
         .mkString(".")
     }
+}
+
+object SymbolMapping {
+  enum FetchingMode {
+    case Plain
+    case FieldAccessor
+    case EnumType
+  }
 }

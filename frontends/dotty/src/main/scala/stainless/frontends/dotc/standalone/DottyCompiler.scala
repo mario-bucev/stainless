@@ -2,6 +2,7 @@
 
 package stainless
 package frontends.dotc
+package standalone
 
 import dotty.tools.dotc._
 import plugins._
@@ -31,7 +32,7 @@ class DottyCompiler(ctx: inox.Context, callback: CallBack) extends Compiler {
     necessary :+ List(new init.Checker) :+ List(extractionPhase)
   }
 
-  private class ExtractionPhase extends PluginPhase {
+  class ExtractionPhase extends PluginPhase {
     override val phaseName = "stainless"
     override val runsAfter = Set(Pickler.name)
     override val runsBefore = Set(FirstTransform.name)
