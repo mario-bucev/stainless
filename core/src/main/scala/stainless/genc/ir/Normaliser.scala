@@ -41,17 +41,29 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
       val vd = rec(vd0)
 
       val (preAlloc, alloc) = alloc0 match {
-        case ArrayAllocStatic(typ, length, Right(values0)) =>
-          val (preValues, values) = flattenArgs(false, false, values0)
-          val alloc = to.ArrayAllocStatic(recAT(typ), length, Right(values))
+        case ArrayAllocStatic(typ, length, ListInit(exprs0)) =>
+          val (preValues, exprs) = flattenArgs(false, false, exprs0)
+          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.ListInit(exprs))
 
           preValues -> alloc
 
-        case ArrayAllocStatic(typ, length, Left(_)) =>
-          val alloc = to.ArrayAllocStatic(recAT(typ), length, Left(to.Zero))
+        case ArrayAllocStatic(typ, length, ZeroInit) =>
+          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.ZeroInit)
 
           Seq.empty -> alloc
 
+//        case ArrayAllocStatic(typ, length, Right(values0)) =>
+//          val (preValues, values) = flattenArgs(false, false, values0)
+//          val alloc = to.ArrayAllocStatic(recAT(typ), length, Right(values))
+//
+//          preValues -> alloc
+//
+//        case ArrayAllocStatic(typ, length, Left(_)) =>
+//          val alloc = to.ArrayAllocStatic(recAT(typ), length, Left(to.Zero))
+//
+//          Seq.empty -> alloc
+
+        // TODO: Il faudrait supprimer le valueInit de to.ArrayAllocVLA et faire l'init ici-meme?
         case ArrayAllocVLA(typ, length0, valueInit0) =>
           // Here it's fine to do two independent normalisations because there will be a
           // sequence point between the length and the value in the C code anyway.
@@ -336,8 +348,9 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
       case to.BinOp(op, lhs, rhs) => rec(lhs) && rec(rhs)
       case to.UnOp(op, e0) => rec(e0)
       case to.App(to.FunVal(fd), extra, args) if allowTopLevelApp => fd.isPure && extra.forall(rec) && args.forall(rec)
-      case to.ArrayInit(to.ArrayAllocStatic(_, _, Left(_))) if allowArray => true
-      case to.ArrayInit(to.ArrayAllocStatic(_, _, Right(elems))) if allowArray => elems.forall(rec)
+      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ZeroInit)) => allowArray
+      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.MemSetInit(_) | to.CallByNameInit(_))) => false
+      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ListInit(exprs))) => allowArray && exprs.forall(rec)
       case _ => false
     }
     rec(e)

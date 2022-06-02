@@ -150,24 +150,50 @@ private[genc] sealed trait IR { ir =>
   // For optimisation of ArrayAllocStatic: avoid processing useless bits in GenC to speed up things for big arrays.
   case object Zero
 
-  // Allocate an array with a compile-time size
-  case class ArrayAllocStatic(typ: ArrayType, length: Int, values: Either[Zero.type, Seq[Expr]]) extends ArrayAlloc {
-    require(
-      values match {
-        case Left(z) =>
-          // No empty array
-          (length > 0) &&
-          typ.base.isIntegral
+  sealed abstract class ArrayInitValues
+  case object ZeroInit extends ArrayInitValues
+  case class MemSetInit(expr: Expr) extends ArrayInitValues
+  case class ListInit(exprs: Seq[Expr]) extends ArrayInitValues
+  case class CallByNameInit(expr: Expr) extends ArrayInitValues
 
-        case Right(values) =>
-          // The type of the values should match the type of the array elements
-          (values forall { _.getType <= typ.base }) &&
+  // Allocate an array with a compile-time size
+  case class ArrayAllocStatic(typ: ArrayType, length: Int, values: ArrayInitValues) extends ArrayAlloc {
+    require(
+      // No empty array
+      (length > 0) &&
+      (values match {
+        // TODO: Explanation
+        case ZeroInit => true
+        case MemSetInit(expr) => expr.getType match {
+          case tpe@PrimitiveType(pt: SizedPrimitiveType) => pt.byteSize == 1 && tpe <= typ.base
+          case _ => false
+        }
+        case ListInit(exprs) =>
           // The number of values should match the array size
-          (length == values.length) &&
-          // And empty arrays are forbidden
-          (length > 0)
-      }
+          exprs.length == length &&
+          // The type of the values should match the type of the array elements
+          exprs.forall(_.getType <= typ.base)
+        case CallByNameInit(expr) =>
+          // Ditto
+          expr.getType <= typ.base
+      })
     )
+//    require(
+//      values match {
+//        case Left(z) =>
+//          // No empty array
+//          (length > 0) &&
+//          typ.base.isIntegral
+//
+//        case Right(values) =>
+//          // The type of the values should match the type of the array elements
+//          (values forall { _.getType <= typ.base }) &&
+//          // The number of values should match the array size
+//          (length == values.length) &&
+//          // And empty arrays are forbidden
+//          (length > 0)
+//      }
+//    )
   }
 
   // Allocate a variable length array (VLA)

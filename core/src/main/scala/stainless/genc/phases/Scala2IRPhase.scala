@@ -163,14 +163,14 @@ private class S2IRImpl(override val s: tt.type,
     CIR.Binding(newVD)
   }
 
-  private def onlyZeroes(e: Expr, debug: Boolean = false): Boolean = e match {
+  private def onlyZeroes(e: Expr): Boolean = e match {
     case BooleanLiteral(lit) => !lit
     case BVLiteral(_, bitset, _) => bitset.isEmpty
     case ClassConstructor(ct, args) =>
       val cd = syms.getClass(ct.id)
-      cd.parents.isEmpty && cd.children.isEmpty && args.forall(onlyZeroes(_, debug))
-    case FiniteArray(elems, _) => elems.forall(onlyZeroes(_, debug))
-    case LargeArray(elems, default, _, _) => elems.values.forall(onlyZeroes(_, debug)) && onlyZeroes(default)
+      cd.parents.isEmpty && cd.children.isEmpty && args.forall(onlyZeroes)
+    case FiniteArray(elems, _) => elems.forall(onlyZeroes)
+    case LargeArray(elems, default, _, _) => elems.values.forall(onlyZeroes) && onlyZeroes(default)
     case _ => false
   }
 
@@ -183,6 +183,7 @@ private class S2IRImpl(override val s: tt.type,
     val decl: Seq[CIR.Expr] = try {
       Seq(CIR.Decl(vd, Some(rec(e))))
     } catch {
+      // TODO: ????
       case t: Throwable if onlyZeroes(e) && (t.toString.contains("VLAs cannot") || t.toString.contains("VLA elements")) =>
         reporter.reset()
         Seq(
@@ -932,26 +933,41 @@ private class S2IRImpl(override val s: tt.type,
     case array @ FiniteArray(elems, base) =>
       val arrayType = CIR.ArrayType(rec(base), None)
       val length = elems.size
-      CIR.ArrayInit(CIR.ArrayAllocStatic(arrayType, length, Right(elems.map(rec))))
+      CIR.ArrayInit(CIR.ArrayAllocStatic(arrayType, length, CIR.ListInit(elems.map(rec))))
 
     case array @ LargeArray(elems, default, size, base) =>
+      if (elems.nonEmpty)
+        reporter.fatalError(array.getPos, "Implementation limitation: cannot specify non-default values for arrays")
+
       val arrayType = CIR.ArrayType(rec(base), None)
 
       // Convert to VLA or normal array
       val alloc = rec(exprOps.simplifyArithmetic(size)) match {
         case CIR.Lit(L.Int32Lit(length)) =>
-          // Optimisation for zero: don't generate values at all to speed up processing within GenC.
-          val values = default match {
-            case Int32Literal(0) | Int8Literal(0) => Left(CIR.Zero)
-            case default => Right((0 until length.toInt) map { _ =>
-              rec(exprOps.freshenLocals(default))
-            })
+          val values = {
+            // TODO: Say why we can special case 0 (because memset operates on a byte-per-byte basis)
+            if (onlyZeroes(default)) {
+              CIR.ZeroInit
+            } else if (isSuitableForMemset(default, arrayType.base)) {
+              CIR.MemSetInit(rec(default))
+            } else {
+              CIR.CallByNameInit(rec(default))
+            }
           }
           CIR.ArrayAllocStatic(arrayType, length.toInt, values)
+//          val values = default match {
+//            case lit@BVLiteral(_, _, _) if lit.toBigInt == 0 => ???
+//            case default if isSuitableForMemset(default, arrayType.base) => ???
+//            case default => Right((0 until length.toInt) map { _ =>
+//              rec(exprOps.freshenLocals(default))
+//            })
+//          }
+//          CIR.ArrayAllocStatic(arrayType, length.toInt, values)
 
+        // TODO: Do something similar to ArrayAllocStatic
         case length =>
           if (arrayType.base.containsArray)
-            reporter.fatalError(array.getPos, s"VLAs cannot have elements being/containing other array")
+            reporter.fatalError(array.getPos, "VLAs cannot have elements being/containing other array")
 
           val value = rec(default)
           CIR.ArrayAllocVLA(arrayType, length, value)
@@ -1017,4 +1033,44 @@ private class S2IRImpl(override val s: tt.type,
       reporter.fatalError(e.getPos, s"Expression `${e.asString}` (${e.getClass}) not handled by GenC component")
   }
 
+
+  def isSuitableForMemset(e: Expr, irType: CIR.Type): Boolean = {
+    def rec(e: Expr): Boolean = e match {
+      case _: Variable => true
+      case _: Literal[t] => true
+      case Plus(lhs, rhs) => rec(lhs) && rec(rhs)
+      case Minus(lhs, rhs) => rec(lhs) && rec(rhs)
+      case Times(lhs, rhs) => rec(lhs) && rec(rhs)
+      case Division(lhs, rhs) => rec(lhs) && rec(rhs)
+      case Remainder(lhs, rhs) => rec(lhs) && rec(rhs)
+      case Modulo(lhs, rhs) => rec(lhs) && rec(rhs)
+      case LessThan(lhs, rhs) => rec(lhs) && rec(rhs)
+      case GreaterThan(lhs, rhs) => rec(lhs) && rec(rhs)
+      case LessEquals(lhs, rhs) => rec(lhs) && rec(rhs)
+      case GreaterEquals(lhs, rhs) => rec(lhs) && rec(rhs)
+      case Equals(lhs, rhs) => rec(lhs) && rec(rhs)
+      case UMinus(e) => rec(e)
+      case BVAnd(lhs, rhs) => rec(lhs) && rec(rhs)
+      case BVOr(lhs, rhs) => rec(lhs) && rec(rhs)
+      case BVXor(lhs, rhs) => rec(lhs) && rec(rhs)
+      case BVShiftLeft(lhs, rhs) => rec(lhs) && rec(rhs)
+      case BVAShiftRight(lhs, rhs) => rec(lhs) && rec(rhs)
+      case BVLShiftRight(lhs, rhs) => rec(lhs) && rec(rhs)
+      case BVNarrowingCast(e, _) => rec(e)
+      case BVWideningCast(e, _) => rec(e)
+      case BVUnsignedToSigned(e) => rec(e)
+      case BVSignedToUnsigned(e) => rec(e)
+      case BVNot(e) => rec(e)
+      case Not(e) => rec(e)
+      case And(es) => es.forall(rec)
+      case Or(es) => es.forall(rec)
+      case Annotated(e, _) => rec(e)
+      case _ => false
+    }
+
+    irType match {
+      case tpe: PT.SizedPrimitiveType if tpe.byteSize == 1 => rec(e)
+      case _ => false
+    }
+  }
 }

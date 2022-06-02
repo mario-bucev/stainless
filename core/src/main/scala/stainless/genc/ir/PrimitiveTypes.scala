@@ -43,16 +43,25 @@ private[genc] object PrimitiveTypes {
     }
   }
 
-  case object CharType extends IntegralPrimitiveType
-  case object Int8Type extends IntegralPrimitiveType
-  case object Int16Type extends IntegralPrimitiveType
-  case object Int32Type extends IntegralPrimitiveType
-  case object Int64Type extends IntegralPrimitiveType
-  case object UInt8Type extends IntegralPrimitiveType
-  case object UInt16Type extends IntegralPrimitiveType
-  case object UInt32Type extends IntegralPrimitiveType
-  case object UInt64Type extends IntegralPrimitiveType
-  case object BoolType extends PrimitiveType
+  sealed trait SizedPrimitiveType extends PrimitiveType {
+    def byteSize: Int = this match {
+      case CharType | BoolType | Int8Type | UInt8Type => 1
+      case Int16Type | UInt16Type => 2
+      case Int32Type | UInt32Type => 4
+      case Int64Type | UInt64Type => 8
+    }
+  }
+
+  case object CharType extends IntegralPrimitiveType with SizedPrimitiveType
+  case object Int8Type extends IntegralPrimitiveType with SizedPrimitiveType
+  case object Int16Type extends IntegralPrimitiveType with SizedPrimitiveType
+  case object Int32Type extends IntegralPrimitiveType with SizedPrimitiveType
+  case object Int64Type extends IntegralPrimitiveType with SizedPrimitiveType
+  case object UInt8Type extends IntegralPrimitiveType with SizedPrimitiveType
+  case object UInt16Type extends IntegralPrimitiveType with SizedPrimitiveType
+  case object UInt32Type extends IntegralPrimitiveType with SizedPrimitiveType
+  case object UInt64Type extends IntegralPrimitiveType with SizedPrimitiveType
+  case object BoolType extends PrimitiveType with SizedPrimitiveType
   case object UnitType extends PrimitiveType
   case object StringType extends PrimitiveType
 

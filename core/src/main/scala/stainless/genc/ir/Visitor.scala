@@ -71,12 +71,14 @@ abstract class Visitor[S <: IR](val ir: S) {
   }
 
   private def rec(alloc: ArrayAlloc): Unit = {
-    (alloc: @unchecked) match {
+    alloc match {
       case ArrayAllocStatic(arrayType, length, values) =>
         rec(arrayType)
         values match {
-          case Right(values) => values foreach rec
-          case _ =>
+          case ZeroInit => ()
+          case MemSetInit(expr) => rec(expr)
+          case ListInit(exprs) => exprs foreach rec
+          case CallByNameInit(expr) => rec(expr)
         }
 
       case ArrayAllocVLA(arrayType, length, valueInit) =>

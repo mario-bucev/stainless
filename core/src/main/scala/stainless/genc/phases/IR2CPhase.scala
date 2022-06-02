@@ -169,55 +169,59 @@ private class IR2CImpl()(using ctx: inox.Context) {
 
     case Decl(vd, None) => C.Decl(rec(vd.id), rec(vd.getType), None)
 
+    // TODO: S'assurer de supprimer les values ici
     case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) if allowFixedArray && vd.typ.isFixedArray =>
-      val values = values0 match {
-        case Right(values0) => values0.map(rec(_))
-        case Left(_) =>
-          // By default, 0-initialisation using only zero value
-          val z = arrayType.base match {
-            case PrimitiveType(Int8Type) => Int8Lit(0)
-            case PrimitiveType(Int32Type) => Int32Lit(0)
-            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
-          }
-          Seq(C.Lit(z))
-      }
-      C.Decl(rec(vd.id), rec(vd.typ), Some(C.ArrayStatic(rec(arrayType.base), values)))
+      ???
+//      val values = values0 match {
+//        case Right(values0) => values0.map(rec(_))
+//        case Left(_) =>
+//          // By default, 0-initialisation using only zero value
+//          val z = arrayType.base match {
+//            case PrimitiveType(Int8Type) => Int8Lit(0)
+//            case PrimitiveType(Int32Type) => Int32Lit(0)
+//            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
+//          }
+//          Seq(C.Lit(z))
+//      }
+//      C.Decl(rec(vd.id), rec(vd.typ), Some(C.ArrayStatic(rec(arrayType.base), values)))
 
     case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) =>
-      val bufferId = C.FreshId("buffer")
-      val values = values0 match {
-        case Right(values0) => values0.map(rec(_))
-        case Left(_) =>
-          // By default, 0-initialisation using only zero value
-          val z = arrayType.base match {
-            case PrimitiveType(Int8Type) => Int8Lit(0)
-            case PrimitiveType(Int32Type) => Int32Lit(0)
-            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
-          }
-          Seq(C.Lit(z))
-      }
-      val bufferDecl = C.DeclArrayStatic(bufferId, rec(arrayType.base), length, values)
-      val data = C.Binding(bufferId)
-      val len = C.Lit(Int32Lit(length))
-      val array = array2Struct(arrayType)
-      val varInit = C.StructInit(array, data :: len :: Nil)
-      val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
-
-      C.buildBlock(bufferDecl :: varDecl :: Nil)
+      ???
+//      val bufferId = C.FreshId("buffer")
+//      val values = values0 match {
+//        case Right(values0) => values0.map(rec(_))
+//        case Left(_) =>
+//          // By default, 0-initialisation using only zero value
+//          val z = arrayType.base match {
+//            case PrimitiveType(Int8Type) => Int8Lit(0)
+//            case PrimitiveType(Int32Type) => Int32Lit(0)
+//            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
+//          }
+//          Seq(C.Lit(z))
+//      }
+//      val bufferDecl = C.DeclArrayStatic(bufferId, rec(arrayType.base), length, values)
+//      val data = C.Binding(bufferId)
+//      val len = C.Lit(Int32Lit(length))
+//      val array = array2Struct(arrayType)
+//      val varInit = C.StructInit(array, data :: len :: Nil)
+//      val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
+//
+//      C.buildBlock(bufferDecl :: varDecl :: Nil)
 
     case ArrayInit(ArrayAllocStatic(arrayType, length, values0)) =>
-      val values = values0 match {
-        case Right(values0) => values0.map(rec(_))
-        case Left(_) =>
-          // By default, 0-initialisation using only zero value
-          val z = arrayType.base match {
-            case PrimitiveType(Int8Type) => Int8Lit(0)
-            case PrimitiveType(Int32Type) => Int32Lit(0)
-            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
-          }
-          Seq(C.Lit(z))
-      }
-      C.ArrayStatic(rec(arrayType.base), values)
+      ???
+//      val values = values0 match {
+//        case Right(values0) => values0.map(rec(_))
+//        case Left(_) =>
+//          // By default, 0-initialisation using only zero value
+//          val z = arrayType.base match {
+//            case PrimitiveType(Int8Type) => Int8Lit(0)
+//            case PrimitiveType(Int32Type) => Int32Lit(0)
+//            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
+//          }
+//          Seq(C.Lit(z))
+//      }
+//      C.ArrayStatic(rec(arrayType.base), values)
 
     case Decl(vd, Some(ArrayInit(ArrayAllocVLA(arrayType, length, valueInit)))) =>
       val bufferId = C.FreshId("buffer")

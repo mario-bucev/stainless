@@ -79,4 +79,17 @@ private[genc] object Literals {
     StringEscapeUtils.escapeJava(s)
   }
 
+  object IntegerLit {
+    def unapply(lit: Literal): Option[BigInt] = lit match {
+      case Int8Lit(v) => Some(v)
+      case Int16Lit(v) => Some(v)
+      case Int32Lit(v) => Some(v)
+      case Int64Lit(v) => Some(v)
+      case UInt8Lit(v)  => Some(v)
+      case UInt16Lit(v) => Some(v)
+      case UInt32Lit(v) => Some(v)
+      case UInt64Lit(v) => Some(v)
+      case _ => None
+    }
+  }
 }

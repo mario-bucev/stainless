@@ -74,12 +74,13 @@ final class IRPrinter[S <: IR](val ir: S) {
     vd.id + ": " + rec(vd.typ)
 
   private def rec(alloc: ArrayAlloc)(using Context): String = {
+    // TODO
     (alloc: @unchecked) match {
-      case ArrayAllocStatic(arrayType, length, Right(values)) =>
-        "Array[" + rec(arrayType.base) + "](" + (values map rec mkString ", ") + ")"
-
-      case ArrayAllocStatic(arrayType, length, Left(z)) =>
-        "Array[" + rec(arrayType.base) + "]( 0's " + length + " times )"
+//      case ArrayAllocStatic(arrayType, length, Right(values)) =>
+//        "Array[" + rec(arrayType.base) + "](" + (values map rec mkString ", ") + ")"
+//
+//      case ArrayAllocStatic(arrayType, length, Left(z)) =>
+//        "Array[" + rec(arrayType.base) + "]( 0's " + length + " times )"
 
       case ArrayAllocVLA(arrayType, length, valueInit) =>
         "Array[" + rec(arrayType.base) + "].fill(" + rec(length) + ")(" + rec(valueInit) + ")"

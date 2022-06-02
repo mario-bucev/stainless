@@ -111,11 +111,12 @@ abstract class Transformer[From <: IR, To <: IR](final val from: From, final val
   protected def rec(vd: ValDef)(using Env): to.ValDef = to.ValDef(vd.id, rec(vd.typ), vd.isVar)
 
   protected def rec(alloc: ArrayAlloc)(using Env): to.ArrayAlloc = (alloc: @unchecked) match {
-    case ArrayAllocStatic(ArrayType(base, optLength), length, Right(values)) =>
-      to.ArrayAllocStatic(to.ArrayType(rec(base), optLength), length, Right(values map rec))
-
-    case ArrayAllocStatic(ArrayType(base, optLength), length, Left(_)) =>
-      to.ArrayAllocStatic(to.ArrayType(rec(base), optLength), length, Left(to.Zero))
+    // TODO
+//    case ArrayAllocStatic(ArrayType(base, optLength), length, Right(values)) =>
+//      to.ArrayAllocStatic(to.ArrayType(rec(base), optLength), length, Right(values map rec))
+//
+//    case ArrayAllocStatic(ArrayType(base, optLength), length, Left(_)) =>
+//      to.ArrayAllocStatic(to.ArrayType(rec(base), optLength), length, Left(to.Zero))
 
     case ArrayAllocVLA(ArrayType(base, optLength), length, valueInit) =>
       to.ArrayAllocVLA(to.ArrayType(rec(base), optLength), rec(length), rec(valueInit))
