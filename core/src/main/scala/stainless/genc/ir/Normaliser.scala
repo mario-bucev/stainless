@@ -4,7 +4,7 @@ package stainless
 package genc
 package ir
 
-import PrimitiveTypes.{ PrimitiveType => PT, _ } // For desambiguation
+import PrimitiveTypes.{ PrimitiveType => PT, _ } // For disambiguation
 import Literals._
 import Operators._
 import IRs._
@@ -34,12 +34,42 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
   private def recAT(typ: ArrayType)(using Env) = rec(typ).asInstanceOf[to.ArrayType]
   private def recCT(typ: ClassType)(using Env) = rec(typ).asInstanceOf[to.ClassType]
 
+  // TODO: S'assurer que len est deja évalué (en vd ou un literal)
+  private def fillArrayMemset(arr: to.Binding, normLen: to.Expr, unormElem: Expr)(using env: Env): (Seq[to.Expr], to.Expr) = {
+    val iVd = to.ValDef(freshId("i"), to.PrimitiveType(Int32Type), isVar = true)
+    val iBdg = to.Binding(iVd)
+    val iDecl = to.Decl(iVd, Some(to.Lit(Int32Lit(0))))
+    val (preElem, normElem) = flatten(unormElem, allowTopLevelApp = true, allowArray = false)
+    val memset = to.MemSet(arr, normElem, normLen)
+    (Seq(iDecl) ++ preElem) -> memset
+  }
+
+  // TODO: S'assurer que len est deja évalué (en vd ou un literal)
+  private def fillArrayByName(arr: to.Binding, normLen: to.Expr, unormElem: Expr)(using env: Env): (Seq[to.Expr], to.Expr) = {
+    val iVd = to.ValDef(freshId("i"), to.PrimitiveType(Int32Type), isVar = true)
+    val iBdg = to.Binding(iVd)
+    val iDecl = to.Decl(iVd, Some(to.Lit(Int32Lit(0))))
+
+    val whileBody = {
+      val (preElem, normElem) = flatten(unormElem, allowTopLevelApp = true, allowArray = false)
+      val upd = to.Assign(to.ArrayAccess(arr, iBdg), normElem)
+      val inc = to.Assign(iBdg, to.BinOp(Operators.Plus, iBdg, to.Lit(Int32Lit(0))))
+      preElem ++ Seq(upd, inc)
+    }
+    val whle = to.While(
+      to.BinOp(Operators.LessThan, iBdg, normLen),
+      to.buildBlock(whileBody))
+
+    Seq(iDecl) -> whle
+  }
+
   override def recImpl(e: Expr)(using env: Env): (to.Expr, Env) = e match {
     case _: Binding | _: FunVal | _: FunRef | _: Lit | _: Block | _: Deref | _: IntegralCast => super.recImpl(e)
 
     case Decl(vd0, Some(ArrayInit(alloc0))) =>
       val vd = rec(vd0)
-
+      ???
+      /*
       val (preAlloc, alloc) = alloc0 match {
         case ArrayAllocStatic(typ, length, ListInit(exprs0)) =>
           val (preValues, exprs) = flattenArgs(false, false, exprs0)
@@ -48,9 +78,19 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
           preValues -> alloc
 
         case ArrayAllocStatic(typ, length, ZeroInit) =>
-          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.ZeroInit)
+          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.ListInit(Seq(to.Lit(Int8Lit(0)))))
 
           Seq.empty -> alloc
+
+        case ArrayAllocStatic(typ, length, MemSetInit(expr0)) =>
+          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.Uninit)
+          val (preExpr, expr) = fillArrayMemset(Binding(vd), to.Lit(Int32Lit(length)), expr0)
+          preExpr -> to.buildBlock(Seq(alloc, expr))
+
+        case ArrayAllocStatic(typ, length, CallByNameInit(expr0)) =>
+          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.Uninit)
+          val (preExpr, expr) = fillArrayByName(Binding(vd), to.Lit(Int32Lit(length)), expr0)
+          preExpr -> to.buildBlock(Seq(alloc, expr))
 
 //        case ArrayAllocStatic(typ, length, Right(values0)) =>
 //          val (preValues, values) = flattenArgs(false, false, values0)
@@ -83,6 +123,7 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
       val declinit = to.Decl(vd, Some(to.ArrayInit(alloc)))
 
       combine(preAlloc :+ declinit) -> env
+      */
 
     case Decl(vd0, Some(value0)) =>
       val vd = rec(vd0)
@@ -348,9 +389,11 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
       case to.BinOp(op, lhs, rhs) => rec(lhs) && rec(rhs)
       case to.UnOp(op, e0) => rec(e0)
       case to.App(to.FunVal(fd), extra, args) if allowTopLevelApp => fd.isPure && extra.forall(rec) && args.forall(rec)
-      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ZeroInit)) => allowArray
-      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.MemSetInit(_) | to.CallByNameInit(_))) => false
+      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.Uninit)) => allowArray // TODO: ok?
       case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ListInit(exprs))) => allowArray && exprs.forall(rec)
+//      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ZeroInit)) => allowArray
+//      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.MemSetInit(_) | to.CallByNameInit(_))) => false
+//      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ListInit(exprs))) => allowArray && exprs.forall(rec)
       case _ => false
     }
     rec(e)

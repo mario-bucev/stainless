@@ -74,12 +74,14 @@ abstract class Visitor[S <: IR](val ir: S) {
     alloc match {
       case ArrayAllocStatic(arrayType, length, values) =>
         rec(arrayType)
-        values match {
-          case ZeroInit => ()
-          case MemSetInit(expr) => rec(expr)
-          case ListInit(exprs) => exprs foreach rec
-          case CallByNameInit(expr) => rec(expr)
-        }
+        // TODO
+        ???
+//        values match {
+//          case ZeroInit => ()
+//          case MemSetInit(expr) => rec(expr)
+//          case ListInit(exprs) => exprs foreach rec
+//          case CallByNameInit(expr) => rec(expr)
+//        }
 
       case ArrayAllocVLA(arrayType, length, valueInit) =>
         rec(arrayType)

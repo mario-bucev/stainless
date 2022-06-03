@@ -20,7 +20,7 @@ trait NoEnv {
  *
  * NOTE Subclasses can selectively override the rec/recImpl methods that aren't final on a need to basis.
  *
- * NOTE Subclasses have to define an `Env` type and an empty enviornment Ø. They can be Unit and (),
+ * NOTE Subclasses have to define an `Env` type and an empty environment Ø. They can be Unit and (),
  *      respectively. In that case, inherit from NoEnv.
  *
  * NOTE No caching is done, hence subclasses should be aware that a definition/expression/type can
@@ -126,7 +126,7 @@ abstract class Transformer[From <: IR, To <: IR](final val from: From, final val
 
   protected final def recCallable(fun: Callable)(using Env): to.Callable = rec(fun).asInstanceOf[to.Callable]
 
-  // We need to propagate the enviornement accross the whole blocks, not simply by recursing
+  // We need to propagate the environment across the whole blocks, not simply by recurring
   protected def recImpl(e: Expr)(using env: Env): (to.Expr, Env) = (e: @unchecked) match {
     case Binding(vd) => to.Binding(rec(vd)) -> env
 
@@ -182,5 +182,6 @@ abstract class Transformer[From <: IR, To <: IR](final val from: From, final val
     case NoType => to.NoType
   }
 
+  protected def recAIV(aiv: ArrayInitValues): to.ArrayInitValues
 }
 
