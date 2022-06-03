@@ -34,53 +34,6 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
   private def recAT(typ: ArrayType)(using Env) = rec(typ).asInstanceOf[to.ArrayType]
   private def recCT(typ: ClassType)(using Env) = rec(typ).asInstanceOf[to.ClassType]
 
-  // TODO: S'assurer que len est deja évalué (en vd ou un literal)
-  private def fillArrayMemset(arr: to.Binding, normLen: to.Expr, unormElem: Expr)(using env: Env): (Seq[to.Expr], to.Expr) = {
-    val (preElem, normElem) = flatten(unormElem, allowTopLevelApp = true, allowArray = false)
-    val memset = to.MemSet(arr, normElem, normLen)
-    preElem -> memset
-  }
-
-  // TODO: S'assurer que len est deja évalué (en vd ou un literal)
-  private def fillArrayByName(arr: to.Binding, normLen: to.Expr, unormElem: Expr)(using env: Env): (Seq[to.Expr], to.Expr) = {
-    val iVd = to.ValDef(freshId("i"), to.PrimitiveType(Int32Type), isVar = true)
-    val iBdg = to.Binding(iVd)
-    val iDecl = to.Decl(iVd, Some(to.Lit(Int32Lit(0))))
-
-    val whileBody = {
-      val (preElem, normElem) = flatten(unormElem, allowTopLevelApp = true, allowArray = false)
-      val upd = to.Assign(to.ArrayAccess(arr, iBdg), normElem)
-      val inc = to.Assign(iBdg, to.BinOp(Operators.Plus, iBdg, to.Lit(Int32Lit(1))))
-      preElem ++ Seq(upd, inc)
-    }
-    val whle = to.While(
-      to.BinOp(Operators.LessThan, iBdg, normLen),
-      to.buildBlock(whileBody))
-
-    Seq(iDecl) -> whle
-  }
-
-  // TODO: S'assurer que len est deja évalué (en vd ou un literal)
-  private def recArrayInitValues(arr: to.Binding, normLen: to.Expr, values: ArrayInitValues)(using env: Env): (Seq[to.Expr], to.ArrayInitValues, Seq[to.Expr]) = values match {
-    case ListInit(exprs0) =>
-      val (preValues, exprs) = flattenArgs(false, false, exprs0)
-      (preValues, to.ListInit(exprs), Seq.empty)
-
-    // TODO: Can only be done in functions, and not in global context!!!!!!
-    case MemSetInit(expr0) =>
-      val (preInitExpr, initExpr) = fillArrayMemset(arr, normLen, expr0)
-      (preInitExpr, to.Uninit, Seq(initExpr))
-
-    // TODO: Can only be done in functions, and not in global context!!!!!!
-    case CallByNameInit(expr0) =>
-      val (preInitExpr, initExpr) = fillArrayByName(arr, normLen, expr0)
-      (preInitExpr, to.Uninit, Seq(initExpr))
-
-    case Uninit =>
-      // TODO: better message
-      ctx.reporter.fatalError("Cannot happen")
-  }
-
   override def recImpl(e: Expr)(using env: Env): (to.Expr, Env) = e match {
     case _: Binding | _: FunVal | _: FunRef | _: Lit | _: Block | _: Deref | _: IntegralCast => super.recImpl(e)
 
@@ -107,17 +60,6 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
           val (preInitExpr, values, initExpr) = recArrayInitValues(to.Binding(vd), length2, values0)
           val alloc = to.ArrayAllocVLA(recAT(typ), length2, values.asVLACompatible)
           (preLength1 ++ preLength2 ++ preInitExpr, alloc, initExpr)
-          /*
-          val (preValueInit, valueInit) = flatten(valueInit0, allowTopLevelApp = true, allowArray = false)
-
-          if (preValueInit.nonEmpty) {
-            ctx.reporter.debug(s"VLA Elements init not supported: ${preValueInit mkString " ~ "} ~ $valueInit")
-            ctx.reporter.fatalError(s"VLA elements cannot be initialised with a complex expression")
-          }
-
-          val alloc = to.ArrayAllocVLA(recAT(typ), length, valueInit)
-          (preLength, alloc, Seq.empty[to.Expr])
-          */
       }
 
       val declinit = to.Decl(vd, Some(to.ArrayInit(alloc)))
@@ -308,6 +250,47 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
     case _ => ctx.reporter.fatalError(s"$e is not handled (${e.getClass}) by the normaliser")
   }
 
+  private def recArrayInitValues(arr: to.Binding, normLen: to.Expr, values: ArrayInitValues)(using env: Env): (Seq[to.Expr], to.ArrayInitValues, Seq[to.Expr]) = values match {
+    case ListInit(exprs0) =>
+      val (preValues, exprs) = flattenArgs(false, false, exprs0)
+      (preValues, to.ListInit(exprs), Seq.empty)
+
+    case MemSetInit(expr0) =>
+      val (preInitExpr, initExpr) = fillArrayMemset(arr, normLen, expr0)
+      (preInitExpr, to.Uninit, Seq(initExpr))
+
+    case CallByNameInit(expr0) =>
+      val (preInitExpr, initExpr) = fillArrayByName(arr, normLen, expr0)
+      (preInitExpr, to.Uninit, Seq(initExpr))
+
+    case Uninit =>
+      ctx.reporter.fatalError(s"$arr somehow set to Uninit")
+  }
+
+  private def fillArrayMemset(arr: to.Binding, normLen: to.Expr, unormElem: Expr)(using env: Env): (Seq[to.Expr], to.Expr) = {
+    val (preElem, normElem) = flatten(unormElem, allowTopLevelApp = true, allowArray = false)
+    val memset = to.MemSet(arr, normElem, normLen)
+    preElem -> memset
+  }
+
+  private def fillArrayByName(arr: to.Binding, normLen: to.Expr, unormElem: Expr)(using env: Env): (Seq[to.Expr], to.Expr) = {
+    val iVd = to.ValDef(freshId("i"), to.PrimitiveType(Int32Type), isVar = true)
+    val iBdg = to.Binding(iVd)
+    val iDecl = to.Decl(iVd, Some(to.Lit(Int32Lit(0))))
+
+    val whileBody = {
+      val (preElem, normElem) = flatten(unormElem, allowTopLevelApp = true, allowArray = false)
+      val upd = to.Assign(to.ArrayAccess(arr, iBdg), normElem)
+      val inc = to.Assign(iBdg, to.BinOp(Operators.Plus, iBdg, to.Lit(Int32Lit(1))))
+      preElem ++ Seq(upd, inc)
+    }
+    val whle = to.While(
+      to.BinOp(Operators.LessThan, iBdg, normLen),
+      to.buildBlock(whileBody))
+
+    Seq(iDecl) -> whle
+  }
+
   private def combine(es: Seq[to.Expr]): to.Expr = es match {
     case Seq() => ctx.reporter.fatalError("no argument")
     case Seq(e) => e // don't introduce block if we can
@@ -388,7 +371,7 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
       case to.BinOp(op, lhs, rhs) => rec(lhs) && rec(rhs)
       case to.UnOp(op, e0) => rec(e0)
       case to.App(to.FunVal(fd), extra, args) if allowTopLevelApp => fd.isPure && extra.forall(rec) && args.forall(rec)
-      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.Uninit)) => allowArray // TODO: ok?
+      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.Uninit)) => allowArray
       case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ListInit(exprs))) => allowArray && exprs.forall(rec)
       case _ => false
     }

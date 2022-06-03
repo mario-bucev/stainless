@@ -65,9 +65,6 @@ class CASTTraverser(using ctx: inox.Context) {
     case Decl(id, typ, Some(value)) =>
       Seq(id, typ, value)
 
-//    case DeclArrayStatic(id, base, length, values) =>
-//      Seq(id, base) ++ values.getOrElse(Seq.empty[Tree])
-
     case ArrayStatic(base, values) =>
       base +: values
 

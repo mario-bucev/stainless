@@ -180,17 +180,7 @@ private class S2IRImpl(override val s: tt.type,
     val vd = CIR.ValDef(rec(x.id), tpe, isVar)
     val newBindings = env.bindings + ((x, instantiateType(x.tpe, tm)) -> vd)
 
-    val decl: Seq[CIR.Expr] = try {
-      Seq(CIR.Decl(vd, Some(rec(e))))
-    } catch {
-      // TODO: ????
-      case t: Throwable if onlyZeroes(e) && (t.toString.contains("VLAs cannot") || t.toString.contains("VLA elements")) =>
-        reporter.reset()
-        Seq(
-          CIR.Decl(vd, None),
-          CIR.MemSet(CIR.Binding(vd), CIR.Lit(L.Int8Lit(0)), CIR.SizeOf(tpe))
-        )
-    }
+    val decl = Seq(CIR.Decl(vd, Some(rec(e))))
     val rest = rec(body)(using env.copy(bindings = newBindings), tm)
     CIR.buildBlock(decl :+ rest)
   }
@@ -938,7 +928,6 @@ private class S2IRImpl(override val s: tt.type,
     case array @ LargeArray(elems, default, size, base) =>
       if (elems.nonEmpty)
         reporter.fatalError(array.getPos, "Implementation limitation: cannot specify non-default values for arrays")
-      // TODO: interdire top-level complex init
 
       val arrayType = CIR.ArrayType(rec(base), None)
       val values: CIR.VLAInitCompatible = {

@@ -74,18 +74,19 @@ final class IRPrinter[S <: IR](val ir: S) {
     vd.id + ": " + rec(vd.typ)
 
   private def rec(alloc: ArrayAlloc)(using Context): String = {
-    // TODO
-//    alloc match {
-////      case ArrayAllocStatic(arrayType, length, Right(values)) =>
-////        "Array[" + rec(arrayType.base) + "](" + (values map rec mkString ", ") + ")"
-////
-////      case ArrayAllocStatic(arrayType, length, Left(z)) =>
-////        "Array[" + rec(arrayType.base) + "]( 0's " + length + " times )"
-//
-//      case ArrayAllocVLA(arrayType, length, valueInit) =>
-//        "Array[" + rec(arrayType.base) + "].fill(" + rec(length) + ")(" + rec(valueInit) + ")"
-//    }
-    ???
+    val prefix = s"Array[${rec(alloc.typ.base)}]"
+
+    def helper(len: String, values: ArrayInitValues) = values match {
+      case Uninit => s"$prefix.fill($len)(<uninit>)"
+      case MemSetInit(e) => s"$prefix.fill($len)(${rec(e)})"
+      case ListInit(es) => s"$prefix${es.map(rec).mkString("(", ", ", ")")}"
+      case CallByNameInit(e) => s"$prefix.fill($len)(${rec(e)})"
+    }
+
+    alloc match {
+      case ArrayAllocStatic(_, len, values) => helper(len.toString, values)
+      case ArrayAllocVLA(_, len, values) => helper(rec(len), values)
+    }
   }
 
   private def rec(e: Expr)(using ptx: Context): String = (e: @unchecked) match {

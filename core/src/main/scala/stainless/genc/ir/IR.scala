@@ -153,58 +153,70 @@ private[genc] sealed trait IR { ir =>
   sealed abstract class ArrayInitValues {
     def asVLACompatible: VLAInitCompatible = this match {
       case v: VLAInitCompatible => v
-      // TODO
-      case _ => sys.error("Oh no :( "+this)
+      case _ => sys.error(s"$this is not VLAInitCompatible")
     }
   }
+
   // TODO: Comment
   // TODO: Name!!!
   sealed trait VLAInitCompatible extends ArrayInitValues
   case object Uninit extends ArrayInitValues with VLAInitCompatible
   case class MemSetInit(expr: Expr) extends ArrayInitValues with VLAInitCompatible
   case class ListInit(exprs: Seq[Expr]) extends ArrayInitValues
+  // NOTE Using "call by name" on `expr` means it will be fully evaluated at runtime as
+  //      many times as the runtime value of `length`.
   case class CallByNameInit(expr: Expr) extends ArrayInitValues with VLAInitCompatible
 
   // Allocate an array with a compile-time size
-  // TODO: Validate values
-  // TODO: validateValues and visitValues to be implemented by IRs
-
   case class ArrayAllocStatic(typ: ArrayType, length: Int, values: ArrayInitValues) extends ArrayAlloc {
-    // TODO
-//    require(
-//      // No empty array
-//      (length > 0) &&
-//      (values match {
-//        // TODO: Explanation
-//        case ZeroInit => true
-//        case MemSetInit(expr) => expr.getType match {
-//          case tpe@PrimitiveType(pt: SizedPrimitiveType) => pt.byteSize == 1 && tpe <= typ.base
-//          case _ => false
-//        }
-//        case ListInit(exprs) =>
-//          // The number of values should match the array size
-//          exprs.length == length &&
-//          // The type of the values should match the type of the array elements
-//          exprs.forall(_.getType <= typ.base)
-//        case CallByNameInit(expr) =>
-//          // Ditto
-//          expr.getType <= typ.base
-//      })
-//    )
+    require(
+      // No empty array
+      (length > 0) &&
+      (values match {
+        // TODO: Explanation
+        case Uninit => true
+        case MemSetInit(expr) => expr.getType match {
+          case tpe@PrimitiveType(pt: SizedPrimitiveType) =>
+            pt.byteSize == 1 &&
+            (expr match {
+              case Lit(Int8Lit(0)) => true
+              case _ => tpe <= typ.base
+            })
+          case _ => false
+        }
+        case ListInit(exprs) =>
+          // The number of values should match the array size
+          exprs.length == length &&
+          // The type of the values should match the type of the array elements
+          exprs.forall(_.getType <= typ.base)
+        case CallByNameInit(expr) =>
+          // Ditto
+          expr.getType <= typ.base
+      })
+    )
   }
 
   // Allocate a variable length array (VLA)
-  // TODO: Move note to AIV
-  // NOTE Using "call by name" on `valueInit` means it will be fully evaluated at runtime as
-  //      many times as the runtime value of `length`.
   case class ArrayAllocVLA(typ: ArrayType, length: Expr, values: VLAInitCompatible) extends ArrayAlloc {
-    // TODO
-//    require(
-//      // The length must evaluate to an integer (and should be positif but this is not tested)
-//      (length.getType == PrimitiveType(Int32Type)) &&
-//      // The type of the array elements should match the type of the initialisation expression
-//      (valueInit.getType == typ.base)
-//    )
+    require(
+      // The length must evaluate to an integer (and should be positif but this is not tested)
+      (length.getType == PrimitiveType(Int32Type)) &&
+      // The type of the array elements should match the type of the initialisation expression
+      (values match {
+        case Uninit => true
+        case MemSetInit(expr) => expr.getType match {
+          case tpe@PrimitiveType(pt: SizedPrimitiveType) =>
+            pt.byteSize == 1 &&
+            (expr match {
+              case Lit(Int8Lit(0)) => true
+              case _ => tpe <= typ.base
+            })
+          case _ => false
+        }
+        case CallByNameInit(expr) =>
+          expr.getType <= typ.base
+      })
+    )
   }
 
   /****************************************************************************************************

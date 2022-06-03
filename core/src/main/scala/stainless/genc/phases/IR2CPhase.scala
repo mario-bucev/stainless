@@ -25,7 +25,7 @@ class IR2CPhase(using override val context: inox.Context) extends LeonPipeline[S
 // This implementation is basically a Transformer that produce something which isn't an IR tree.
 // So roughly the same visiting scheme is applied.
 //
-// Function conversion is pretty straighforward at this point of the pipeline. Expression conversion
+// Function conversion is pretty straightforward at this point of the pipeline. Expression conversion
 // require little care. But class conversion is harder; see detailed procedure below.
 private class IR2CImpl()(using ctx: inox.Context) {
   def apply(ir: Prog): C.Prog = rec(ir)
@@ -64,7 +64,7 @@ private class IR2CImpl()(using ctx: inox.Context) {
 
   private def rec(prog: Prog): C.Prog = {
 
-    val decls = prog.decls.map { case (decl, modes) => rec(decl, allowFixedArray = true) match {
+    val decls = prog.decls.map { case (decl, modes) => rec(decl, topLevelDecl = true) match {
       case res: C.Decl => (res, modes)
       case res =>
         ctx.reporter.fatalError(
@@ -138,36 +138,10 @@ private class IR2CImpl()(using ctx: inox.Context) {
     case NoType => ???
   }
 
-  private def recArrayDecl(vd: ValDef, arrInit: ArrayInit): C.Expr = {
-    val bufferId = C.FreshId("buffer")
-    val recBaseTpe = rec(arrInit.alloc.typ.base)
-    val (len, decl) = arrInit.alloc match {
-      case ArrayAllocStatic(_, len, values0) =>
-        val values = values0 match {
-          case ListInit(exprs) => Some(C.ArrayStatic(recBaseTpe, exprs.map(rec(_))))
-          case Uninit => None
-          case other => ctx.reporter.fatalError(s"Got $other")
-        }
-        val bufferDecl = C.Decl(bufferId, C.FixedArrayType(recBaseTpe, len), values)
-        (C.Lit(Int32Lit(len)), bufferDecl)
-      case ArrayAllocVLA(_, len0, values0) =>
-        assert(values0 == Uninit)
-        val len = rec(len0)
-        val bufferDecl = C.DeclArrayVLA(bufferId, recBaseTpe, len)
-        (len, bufferDecl)
-    }
-    val data = C.Binding(bufferId)
-    val array = array2Struct(arrInit.alloc.typ)
-    val varInit = C.StructInit(array, data :: len :: Nil)
-    val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
-
-    C.buildBlock(decl :: varDecl :: Nil)
-  }
-
   // One major difference of this rec compared to Transformer.rec(Expr) is that here
   // we don't necessarily follow every branch of the AST. For example, we don't recurse
   // on function definitions, hence no problem with recursive functions.
-  private def rec(e: Expr, allowFixedArray: Boolean = false): C.Expr = e match {
+  private def rec(e: Expr, topLevelDecl: Boolean = false): C.Expr = e match {
     case Binding(vd) => C.Binding(rec(vd.id))
 
     case Assert(e) => C.Assert(rec(e))
@@ -195,63 +169,24 @@ private class IR2CImpl()(using ctx: inox.Context) {
 
     case Decl(vd, None) => C.Decl(rec(vd.id), rec(vd.getType), None)
 
-    // TODO: allowFixedArray ~> topLevelDecl
-    case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) if allowFixedArray && vd.typ.isFixedArray =>
-      // TODO: Ah, mais c'est pour avoir un int x[32] = { ... }, parce qu'au top-level, on ne peut pas avoir de block
-      // TODO: Et du coup, pas besoin de créer un array_xyz car on connait la len
-      //  -Mais que se passe-t-il si on fait arr.len ou si on passe ce arr en param a une fn?
-      ???
-//      val values = values0 match {
-//        case Right(values0) => values0.map(rec(_))
-//        case Left(_) =>
-//          // By default, 0-initialisation using only zero value
-//          val z = arrayType.base match {
-//            case PrimitiveType(Int8Type) => Int8Lit(0)
-//            case PrimitiveType(Int32Type) => Int32Lit(0)
-//            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
-//          }
-//          Seq(C.Lit(z))
-//      }
-//      C.Decl(rec(vd.id), rec(vd.typ), Some(C.ArrayStatic(rec(arrayType.base), values)))
+    case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) if topLevelDecl && vd.typ.isFixedArray =>
+      // Top level declaration (appearing in global scope).
+      // Such arrays must be list-initialized (as we are not allowed to have statements to fill the array)
+      val values = values0 match {
+        case ListInit(exprs) => exprs.map(rec(_))
+        case other => ctx.reporter.fatalError(s"Array $vd appearing in top-level may only be initialized with a list")
+      }
+      C.Decl(rec(vd.id), rec(vd.typ), Some(C.ArrayStatic(rec(arrayType.base), values)))
 
     case Decl(vd, Some(arrInit@ArrayInit(_))) =>
       recArrayDecl(vd, arrInit)
-//    case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) =>
-//      val bufferId = C.FreshId("buffer")
-//      val values = values0 match {
-//        case ListInit(exprs) => Some(exprs.map(rec(_)))
-//        case Uninit => None
-//        case other => ctx.reporter.fatalError(s"Got $other")
-//      }
-//      val bufferDecl = C.DeclArrayStatic(bufferId, rec(arrayType.base), length, values)
-//      val data = C.Binding(bufferId)
-//      val len = C.Lit(Int32Lit(length))
-//      val array = array2Struct(arrayType)
-//      val varInit = C.StructInit(array, data :: len :: Nil)
-//      val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
-//
-//      C.buildBlock(bufferDecl :: varDecl :: Nil)
-//
-//    case Decl(vd, Some(ArrayInit(ArrayAllocVLA(arrayType, length, valueInit)))) =>
-//      ???
-//      val bufferId = C.FreshId("buffer")
-//      val lenId = C.FreshId("length")
-//      val lenDecl = C.Decl(lenId, C.Primitive(Int32Type), Some(rec(length))) // Eval `length` once only
-//      val len = C.Binding(lenId)
-//      val bufferDecl = C.DeclArrayVLA(bufferId, rec(arrayType.base), len, rec(valueInit))
-//      val data = C.Binding(bufferId)
-//      val array = array2Struct(arrayType)
-//      val varInit = C.StructInit(array, data :: len :: Nil)
-//      val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
-//
-//      C.buildBlock(lenDecl :: bufferDecl :: varDecl :: Nil)
 
     case Decl(vd, Some(value)) => C.Decl(rec(vd.id), rec(vd.getType), Some(rec(value)))
 
     case ArrayInit(ArrayAllocStatic(arrayType, length, values0)) =>
       val values = values0 match {
         case ListInit(exprs) => exprs.map(rec(_))
-        case other => ctx.reporter.fatalError(s"Got $other")
+        case _ => ctx.reporter.fatalError(s"$e did not properly get normalized")
       }
       C.ArrayStatic(rec(arrayType.base), values)
 
@@ -379,7 +314,33 @@ private class IR2CImpl()(using ctx: inox.Context) {
     case Break => C.Break
   }
 
-  // Construct an instantce of the given case class.
+  private def recArrayDecl(vd: ValDef, arrInit: ArrayInit): C.Expr = {
+    val bufferId = C.FreshId("buffer")
+    val recBaseTpe = rec(arrInit.alloc.typ.base)
+    val (len, decl) = arrInit.alloc match {
+      case ArrayAllocStatic(_, len, values0) =>
+        val values = values0 match {
+          case ListInit(exprs) => Some(C.ArrayStatic(recBaseTpe, exprs.map(rec(_))))
+          case Uninit => None
+          case _ => ctx.reporter.fatalError(s"$arrInit did not properly get normalized")
+        }
+        val bufferDecl = C.Decl(bufferId, C.FixedArrayType(recBaseTpe, len), values)
+        (C.Lit(Int32Lit(len)), bufferDecl)
+      case ArrayAllocVLA(_, len0, values0) =>
+        assert(values0 == Uninit)
+        val len = rec(len0)
+        val bufferDecl = C.DeclArrayVLA(bufferId, recBaseTpe, len)
+        (len, bufferDecl)
+    }
+    val data = C.Binding(bufferId)
+    val array = array2Struct(arrInit.alloc.typ)
+    val varInit = C.StructInit(array, data :: len :: Nil)
+    val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
+
+    C.buildBlock(decl :: varDecl :: Nil)
+  }
+
+  // Construct an instance of the given case class.
   //
   // There are three main cases:
   //  - 1) This case class has no parent;
