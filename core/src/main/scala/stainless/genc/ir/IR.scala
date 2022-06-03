@@ -150,18 +150,27 @@ private[genc] sealed trait IR { ir =>
   // For optimisation of ArrayAllocStatic: avoid processing useless bits in GenC to speed up things for big arrays.
   case object Zero
 
-  sealed abstract class ArrayInitValues
-  case object Uninit extends ArrayInitValues
-  case object ZeroInit extends ArrayInitValues
-  case class MemSetInit(expr: Expr) extends ArrayInitValues
+  sealed abstract class ArrayInitValues {
+    def asVLACompatible: VLAInitCompatible = this match {
+      case v: VLAInitCompatible => v
+      // TODO
+      case _ => sys.error("Oh no :( "+this)
+    }
+  }
+  // TODO: Comment
+  // TODO: Name!!!
+  sealed trait VLAInitCompatible extends ArrayInitValues
+  case object Uninit extends ArrayInitValues with VLAInitCompatible
+  case class MemSetInit(expr: Expr) extends ArrayInitValues with VLAInitCompatible
   case class ListInit(exprs: Seq[Expr]) extends ArrayInitValues
-  case class CallByNameInit(expr: Expr) extends ArrayInitValues
+  case class CallByNameInit(expr: Expr) extends ArrayInitValues with VLAInitCompatible
 
   // Allocate an array with a compile-time size
   // TODO: Validate values
   // TODO: validateValues and visitValues to be implemented by IRs
 
   case class ArrayAllocStatic(typ: ArrayType, length: Int, values: ArrayInitValues) extends ArrayAlloc {
+    // TODO
 //    require(
 //      // No empty array
 //      (length > 0) &&
@@ -185,16 +194,17 @@ private[genc] sealed trait IR { ir =>
   }
 
   // Allocate a variable length array (VLA)
-  //
+  // TODO: Move note to AIV
   // NOTE Using "call by name" on `valueInit` means it will be fully evaluated at runtime as
   //      many times as the runtime value of `length`.
-  case class ArrayAllocVLA(typ: ArrayType, length: Expr, valueInit: Expr) extends ArrayAlloc {
-    require(
-      // The length must evaluate to an integer (and should be positif but this is not tested)
-      (length.getType == PrimitiveType(Int32Type)) &&
-      // The type of the array elements should match the type of the initialisation expression
-      (valueInit.getType == typ.base)
-    )
+  case class ArrayAllocVLA(typ: ArrayType, length: Expr, values: VLAInitCompatible) extends ArrayAlloc {
+    // TODO
+//    require(
+//      // The length must evaluate to an integer (and should be positif but this is not tested)
+//      (length.getType == PrimitiveType(Int32Type)) &&
+//      // The type of the array elements should match the type of the initialisation expression
+//      (valueInit.getType == typ.base)
+//    )
   }
 
   /****************************************************************************************************

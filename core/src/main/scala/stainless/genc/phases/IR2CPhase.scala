@@ -138,6 +138,32 @@ private class IR2CImpl()(using ctx: inox.Context) {
     case NoType => ???
   }
 
+  private def recArrayDecl(vd: ValDef, arrInit: ArrayInit): C.Expr = {
+    val bufferId = C.FreshId("buffer")
+    val recBaseTpe = rec(arrInit.alloc.typ.base)
+    val (len, decl) = arrInit.alloc match {
+      case ArrayAllocStatic(_, len, values0) =>
+        val values = values0 match {
+          case ListInit(exprs) => Some(exprs.map(rec(_)))
+          case Uninit => None
+          case other => ctx.reporter.fatalError(s"Got $other")
+        }
+        val bufferDecl = C.DeclArrayStatic(bufferId, recBaseTpe, len, values)
+        (C.Lit(Int32Lit(len)), bufferDecl)
+      case ArrayAllocVLA(_, len0, values0) =>
+        assert(values0 == Uninit)
+        val len = rec(len0)
+        val bufferDecl = C.DeclArrayVLA(bufferId, recBaseTpe, len, ???) // TODO
+        (len, bufferDecl)
+    }
+    val data = C.Binding(bufferId)
+    val array = array2Struct(arrInit.alloc.typ)
+    val varInit = C.StructInit(array, data :: len :: Nil)
+    val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
+
+    C.buildBlock(decl :: varDecl :: Nil)
+  }
+
   // One major difference of this rec compared to Transformer.rec(Expr) is that here
   // we don't necessarily follow every branch of the AST. For example, we don't recurse
   // on function definitions, hence no problem with recursive functions.
@@ -191,19 +217,9 @@ private class IR2CImpl()(using ctx: inox.Context) {
     case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) =>
       val bufferId = C.FreshId("buffer")
       val values = values0 match {
-        case ZeroInit => Some(Seq(C.Lit(Int32Lit(0)))) // TODO: Ok or special case it further?
         case ListInit(exprs) => Some(exprs.map(rec(_)))
         case Uninit => None
         case other => ctx.reporter.fatalError(s"Got $other")
-//        case Right(values0) => values0.map(rec(_))
-//        case Left(_) =>
-//          // By default, 0-initialisation using only zero value
-//          val z = arrayType.base match {
-//            case PrimitiveType(Int8Type) => Int8Lit(0)
-//            case PrimitiveType(Int32Type) => Int32Lit(0)
-//            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
-//          }
-//          Seq(C.Lit(z))
       }
       val bufferDecl = C.DeclArrayStatic(bufferId, rec(arrayType.base), length, values)
       val data = C.Binding(bufferId)
@@ -214,35 +230,40 @@ private class IR2CImpl()(using ctx: inox.Context) {
 
       C.buildBlock(bufferDecl :: varDecl :: Nil)
 
-    case ArrayInit(ArrayAllocStatic(arrayType, length, values0)) =>
-      ???
-//      val values = values0 match {
-//        case Right(values0) => values0.map(rec(_))
-//        case Left(_) =>
-//          // By default, 0-initialisation using only zero value
-//          val z = arrayType.base match {
-//            case PrimitiveType(Int8Type) => Int8Lit(0)
-//            case PrimitiveType(Int32Type) => Int32Lit(0)
-//            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
-//          }
-//          Seq(C.Lit(z))
-//      }
-//      C.ArrayStatic(rec(arrayType.base), values)
-
     case Decl(vd, Some(ArrayInit(ArrayAllocVLA(arrayType, length, valueInit)))) =>
-      val bufferId = C.FreshId("buffer")
-      val lenId = C.FreshId("length")
-      val lenDecl = C.Decl(lenId, C.Primitive(Int32Type), Some(rec(length))) // Eval `length` once only
-      val len = C.Binding(lenId)
-      val bufferDecl = C.DeclArrayVLA(bufferId, rec(arrayType.base), len, rec(valueInit))
-      val data = C.Binding(bufferId)
-      val array = array2Struct(arrayType)
-      val varInit = C.StructInit(array, data :: len :: Nil)
-      val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
-
-      C.buildBlock(lenDecl :: bufferDecl :: varDecl :: Nil)
+      ???
+//      val bufferId = C.FreshId("buffer")
+//      val lenId = C.FreshId("length")
+//      val lenDecl = C.Decl(lenId, C.Primitive(Int32Type), Some(rec(length))) // Eval `length` once only
+//      val len = C.Binding(lenId)
+//      val bufferDecl = C.DeclArrayVLA(bufferId, rec(arrayType.base), len, rec(valueInit))
+//      val data = C.Binding(bufferId)
+//      val array = array2Struct(arrayType)
+//      val varInit = C.StructInit(array, data :: len :: Nil)
+//      val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
+//
+//      C.buildBlock(lenDecl :: bufferDecl :: varDecl :: Nil)
 
     case Decl(vd, Some(value)) => C.Decl(rec(vd.id), rec(vd.getType), Some(rec(value)))
+
+    case ArrayInit(ArrayAllocStatic(arrayType, length, values0)) =>
+      val values = values0 match {
+        case ListInit(exprs) => exprs.map(rec(_))
+        case other => ctx.reporter.fatalError(s"Got $other")
+      }
+      C.ArrayStatic(rec(arrayType.base), values)
+    //      val values = values0 match {
+    //        case Right(values0) => values0.map(rec(_))
+    //        case Left(_) =>
+    //          // By default, 0-initialisation using only zero value
+    //          val z = arrayType.base match {
+    //            case PrimitiveType(Int8Type) => Int8Lit(0)
+    //            case PrimitiveType(Int32Type) => Int32Lit(0)
+    //            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
+    //          }
+    //          Seq(C.Lit(z))
+    //      }
+    //      C.ArrayStatic(rec(arrayType.base), values)
 
     case App(FunVal(fd), Seq(), Seq()) if fd.body == FunDropped(true) => C.Binding(rec(fd.id))
 

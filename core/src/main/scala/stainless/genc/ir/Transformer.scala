@@ -76,7 +76,7 @@ abstract class Transformer[From <: IR, To <: IR](final val from: From, final val
     newer
   }
 
-  protected def rec(fb: FunBody)(using Env): to.FunBody = (fb: @unchecked) match {
+  protected def rec(fb: FunBody)(using Env): to.FunBody = fb match {
     case FunDropped(isAccessor) => to.FunDropped(isAccessor)
     case FunBodyAST(body) => to.FunBodyAST(rec(body))
     case FunBodyManual(headerIncludes, cIncludes, body) => to.FunBodyManual(headerIncludes, cIncludes, body)
@@ -110,20 +110,21 @@ abstract class Transformer[From <: IR, To <: IR](final val from: From, final val
 
   protected def rec(vd: ValDef)(using Env): to.ValDef = to.ValDef(vd.id, rec(vd.typ), vd.isVar)
 
-  protected def rec(alloc: ArrayAlloc)(using Env): to.ArrayAlloc = (alloc: @unchecked) match {
-    case ArrayAllocStatic(ArrayType(base, optLength), length, values) =>
-      val recTpe = to.ArrayType(rec(base), optLength)
-      val recValues = values match {
-        case ZeroInit => to.ZeroInit
-        case Uninit => to.Uninit
-        case MemSetInit(e) => to.MemSetInit(rec(e))
-        case ListInit(es) => to.ListInit(es map rec)
-        case CallByNameInit(e) => to.CallByNameInit(rec(e))
-      }
-      to.ArrayAllocStatic(recTpe, length, recValues)
+  protected def rec(alloc: ArrayAlloc)(using Env): to.ArrayAlloc = {
+    def helper(values: ArrayInitValues): to.ArrayInitValues = values match {
+      case Uninit => to.Uninit
+      case MemSetInit(e) => to.MemSetInit(rec(e))
+      case ListInit(es) => to.ListInit(es map rec)
+      case CallByNameInit(e) => to.CallByNameInit(rec(e))
+    }
 
-    case ArrayAllocVLA(ArrayType(base, optLength), length, valueInit) =>
-      to.ArrayAllocVLA(to.ArrayType(rec(base), optLength), rec(length), rec(valueInit))
+    alloc match {
+      case ArrayAllocStatic(ArrayType(base, optLength), length, values) =>
+        to.ArrayAllocStatic(to.ArrayType(rec(base), optLength), length, helper(values))
+
+      case ArrayAllocVLA(ArrayType(base, optLength), length, values) =>
+        to.ArrayAllocVLA(to.ArrayType(rec(base), optLength), rec(length), helper(values).asVLACompatible)
+    }
   }
 
   protected final def rec(e: Expr)(using Env): to.Expr = recImpl(e)._1
@@ -131,7 +132,7 @@ abstract class Transformer[From <: IR, To <: IR](final val from: From, final val
   protected final def recCallable(fun: Callable)(using Env): to.Callable = rec(fun).asInstanceOf[to.Callable]
 
   // We need to propagate the environment across the whole blocks, not simply by recurring
-  protected def recImpl(e: Expr)(using env: Env): (to.Expr, Env) = (e: @unchecked) match {
+  protected def recImpl(e: Expr)(using env: Env): (to.Expr, Env) = e match {
     case Binding(vd) => to.Binding(rec(vd)) -> env
 
     case FunVal(fd) => to.FunVal(rec(fd)) -> env
@@ -175,7 +176,7 @@ abstract class Transformer[From <: IR, To <: IR](final val from: From, final val
     case Break => to.Break -> env
   }
 
-  protected def rec(typ: Type)(using Env): to.Type = (typ: @unchecked) match {
+  protected def rec(typ: Type)(using Env): to.Type = typ match {
     case PrimitiveType(pt) => to.PrimitiveType(pt)
     case FunType(ctx, params, ret) => to.FunType(ctx map rec, params map rec, rec(ret))
     case ClassType(clazz) => to.ClassType(rec(clazz))

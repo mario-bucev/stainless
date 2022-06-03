@@ -63,42 +63,54 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
     Seq(iDecl) -> whle
   }
 
+  // TODO: S'assurer que len est deja évalué (en vd ou un literal)
+  private def recArrayInitValues(arr: to.Binding, normLen: to.Expr, values: ArrayInitValues)(using env: Env): (Seq[to.Expr], to.ArrayInitValues, Seq[to.Expr]) = values match {
+    case ListInit(exprs0) =>
+      val (preValues, exprs) = flattenArgs(false, false, exprs0)
+      (preValues, to.ListInit(exprs), Seq.empty)
+
+    // TODO: Can only be done in functions, and not in global context!!!!!!
+    case MemSetInit(expr0) =>
+      val (preInitExpr, initExpr) = fillArrayMemset(arr, normLen, expr0)
+      (preInitExpr, to.Uninit, Seq(initExpr))
+
+    // TODO: Can only be done in functions, and not in global context!!!!!!
+    case CallByNameInit(expr0) =>
+      val (preInitExpr, initExpr) = fillArrayByName(arr, normLen, expr0)
+      (preInitExpr, to.Uninit, Seq(initExpr))
+
+    case Uninit =>
+      // TODO: better message
+      ctx.reporter.fatalError("Cannot happen")
+  }
+
   override def recImpl(e: Expr)(using env: Env): (to.Expr, Env) = e match {
     case _: Binding | _: FunVal | _: FunRef | _: Lit | _: Block | _: Deref | _: IntegralCast => super.recImpl(e)
 
     case Decl(vd0, Some(ArrayInit(alloc0))) =>
       val vd = rec(vd0)
       val (preAlloc, alloc, initExpr) = alloc0 match {
-        case ArrayAllocStatic(typ, length, ListInit(exprs0)) =>
-          val (preValues, exprs) = flattenArgs(false, false, exprs0)
-          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.ListInit(exprs))
-          (preValues, alloc, Seq.empty[to.Expr])
+        case ArrayAllocStatic(typ, length, values0) =>
+          val (preInitExpr, values, initExpr) = recArrayInitValues(to.Binding(vd), to.Lit(Int32Lit(length)), values0)
+          val alloc = to.ArrayAllocStatic(recAT(typ), length, values)
+          (preInitExpr, alloc, initExpr)
 
-        case ArrayAllocStatic(typ, length, ZeroInit) =>
-          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.ZeroInit)
-          (Seq.empty[to.Expr], alloc, Seq.empty[to.Expr])
-
-        case ArrayAllocStatic(typ, length, MemSetInit(expr0)) =>
-          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.Uninit)
-          // TODO: Can only be done in functions, and not in global context!!!!!!
-          val (preInitExpr, initExpr) = fillArrayMemset(to.Binding(vd), to.Lit(Int32Lit(length)), expr0)
-          (preInitExpr, alloc, Seq(initExpr))
-
-        case ArrayAllocStatic(typ, length, CallByNameInit(expr0)) =>
-          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.Uninit)
-          // TODO: Can only be done in functions, and not in global context!!!!!!
-          val (preInitExpr, initExpr) = fillArrayByName(to.Binding(vd), to.Lit(Int32Lit(length)), expr0)
-          (preInitExpr, alloc, Seq(initExpr))
-
-        case ArrayAllocStatic(typ, length, Uninit) =>
-          // TODO
-          ctx.reporter.fatalError("Cannot happen")
-
-        // TODO: Il faudrait supprimer le valueInit de to.ArrayAllocVLA et faire l'init ici-meme?
-        case ArrayAllocVLA(typ, length0, valueInit0) =>
+        case ArrayAllocVLA(typ, length0, values0) =>
           // Here it's fine to do two independent normalisations because there will be a
           // sequence point between the length and the value in the C code anyway.
-          val (preLength, length) = flatten(length0, allowTopLevelApp = true, allowArray = false)
+          val (preLength1, length1) = flatten(length0, allowTopLevelApp = true, allowArray = false)
+          // Make sure the length is a value
+          val (preLength2, length2) = length1 match {
+            case _: Lit | _: Binding => (Seq.empty, length1) // The literal case should not arise, as we would have used an ArrayAllocStatic
+            case _ =>
+              val lenVd = to.ValDef(freshId("len"), to.PrimitiveType(Int32Type), isVar = false)
+              val lenDecl = to.Decl(lenVd, Some(length1))
+              (Seq(lenDecl), to.Binding(lenVd))
+          }
+          val (preInitExpr, values, initExpr) = recArrayInitValues(to.Binding(vd), length2, values0)
+          val alloc = to.ArrayAllocVLA(recAT(typ), length2, values.asVLACompatible)
+          (preLength1 ++ preLength2 ++ preInitExpr, alloc, initExpr)
+          /*
           val (preValueInit, valueInit) = flatten(valueInit0, allowTopLevelApp = true, allowArray = false)
 
           if (preValueInit.nonEmpty) {
@@ -108,6 +120,7 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
 
           val alloc = to.ArrayAllocVLA(recAT(typ), length, valueInit)
           (preLength, alloc, Seq.empty[to.Expr])
+          */
       }
 
       val declinit = to.Decl(vd, Some(to.ArrayInit(alloc)))
@@ -378,7 +391,7 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
       case to.BinOp(op, lhs, rhs) => rec(lhs) && rec(rhs)
       case to.UnOp(op, e0) => rec(e0)
       case to.App(to.FunVal(fd), extra, args) if allowTopLevelApp => fd.isPure && extra.forall(rec) && args.forall(rec)
-      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.Uninit | to.ZeroInit)) => allowArray // TODO: ok?
+      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.Uninit)) => allowArray // TODO: ok?
       case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ListInit(exprs))) => allowArray && exprs.forall(rec)
       case _ => false
     }

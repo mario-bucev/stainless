@@ -939,30 +939,27 @@ private class S2IRImpl(override val s: tt.type,
       if (elems.nonEmpty)
         reporter.fatalError(array.getPos, "Implementation limitation: cannot specify non-default values for arrays")
       // TODO: interdire top-level complex init
-      val arrayType = CIR.ArrayType(rec(base), None)
 
+      val arrayType = CIR.ArrayType(rec(base), None)
+      val values: CIR.VLAInitCompatible = {
+        if (onlyZeroes(default)) {
+          CIR.MemSetInit(CIR.Lit(L.Int8Lit(0)))
+        } else if (isSuitableForMemset(default, arrayType.base)) {
+          CIR.MemSetInit(rec(default))
+        } else {
+          CIR.CallByNameInit(rec(default))
+        }
+      }
       // Convert to VLA or normal array
       val alloc = rec(exprOps.simplifyArithmetic(size)) match {
         case CIR.Lit(L.Int32Lit(length)) =>
-          val values = {
-            // TODO: Say why we can special case 0 (because memset operates on a byte-per-byte basis)
-            if (onlyZeroes(default)) {
-              CIR.ZeroInit
-            } else if (isSuitableForMemset(default, arrayType.base)) {
-              CIR.MemSetInit(rec(default))
-            } else {
-              CIR.CallByNameInit(rec(default))
-            }
-          }
           CIR.ArrayAllocStatic(arrayType, length.toInt, values)
 
-        // TODO: Do something similar to ArrayAllocStatic
         case length =>
           if (arrayType.base.containsArray)
             reporter.fatalError(array.getPos, "VLAs cannot have elements being/containing other array")
 
-          val value = rec(default)
-          CIR.ArrayAllocVLA(arrayType, length, value)
+          CIR.ArrayAllocVLA(arrayType, length, values)
       }
 
       CIR.ArrayInit(alloc)

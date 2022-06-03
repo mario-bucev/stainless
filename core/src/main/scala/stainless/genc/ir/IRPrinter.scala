@@ -75,16 +75,17 @@ final class IRPrinter[S <: IR](val ir: S) {
 
   private def rec(alloc: ArrayAlloc)(using Context): String = {
     // TODO
-    (alloc: @unchecked) match {
-//      case ArrayAllocStatic(arrayType, length, Right(values)) =>
-//        "Array[" + rec(arrayType.base) + "](" + (values map rec mkString ", ") + ")"
+//    alloc match {
+////      case ArrayAllocStatic(arrayType, length, Right(values)) =>
+////        "Array[" + rec(arrayType.base) + "](" + (values map rec mkString ", ") + ")"
+////
+////      case ArrayAllocStatic(arrayType, length, Left(z)) =>
+////        "Array[" + rec(arrayType.base) + "]( 0's " + length + " times )"
 //
-//      case ArrayAllocStatic(arrayType, length, Left(z)) =>
-//        "Array[" + rec(arrayType.base) + "]( 0's " + length + " times )"
-
-      case ArrayAllocVLA(arrayType, length, valueInit) =>
-        "Array[" + rec(arrayType.base) + "].fill(" + rec(length) + ")(" + rec(valueInit) + ")"
-    }
+//      case ArrayAllocVLA(arrayType, length, valueInit) =>
+//        "Array[" + rec(arrayType.base) + "].fill(" + rec(length) + ")(" + rec(valueInit) + ")"
+//    }
+    ???
   }
 
   private def rec(e: Expr)(using ptx: Context): String = (e: @unchecked) match {
