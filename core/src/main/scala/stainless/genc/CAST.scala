@@ -125,8 +125,9 @@ object CAST { // C Abstract Syntax Tree
     require(optValue.forall(_.isValue), s"Initialisation $id = ${optValue.get} should be done with a value")
   }
 
-  case class DeclArrayStatic(id: Id, base: Type, length: Int, values: Seq[Expr]) extends Expr {
-    require(values forall { _.isValue },
+  // TODO: Merge with ArrayStatic
+  case class DeclArrayStatic(id: Id, base: Type, length: Int, values: Option[Seq[Expr]]) extends Expr {
+    require(values.forall(_.forall { _.isValue }),
       s"Array initialisation of $id with ${values.mkString("{", ", ", "}")} should be done with values"
     )
   }

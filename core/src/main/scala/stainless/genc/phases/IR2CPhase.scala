@@ -122,7 +122,7 @@ private class IR2CImpl()(using ctx: inox.Context) {
 
   private def rec(typ: Type): C.Type = typ match {
     case PrimitiveType(pt) => C.Primitive(pt)
-    case FunType(ctx, params, ret) => C.FunType(params = (ctx ++ params).map(rec(_)), ret = rec(ret))
+    case FunType(ctx, params, ret) => C.FunType(params = (ctx ++ params).map(rec), ret = rec(ret))
     case ClassType(clazz) => convertClass(clazz) // can be a struct or an enum
     case array @ ArrayType(_, None) => array2Struct(array)
     case array @ ArrayType(base, Some(length)) => C.FixedArrayType(rec(base), length)
@@ -169,8 +169,11 @@ private class IR2CImpl()(using ctx: inox.Context) {
 
     case Decl(vd, None) => C.Decl(rec(vd.id), rec(vd.getType), None)
 
-    // TODO: S'assurer de supprimer les values ici
+    // TODO: allowFixedArray ~> topLevelDecl
     case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) if allowFixedArray && vd.typ.isFixedArray =>
+      // TODO: Ah, mais c'est pour avoir un int x[32] = { ... }, parce qu'au top-level, on ne peut pas avoir de block
+      // TODO: Et du coup, pas besoin de créer un array_xyz car on connait la len
+      //  -Mais que se passe-t-il si on fait arr.len ou si on passe ce arr en param a une fn?
       ???
 //      val values = values0 match {
 //        case Right(values0) => values0.map(rec(_))
@@ -186,9 +189,12 @@ private class IR2CImpl()(using ctx: inox.Context) {
 //      C.Decl(rec(vd.id), rec(vd.typ), Some(C.ArrayStatic(rec(arrayType.base), values)))
 
     case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) =>
-      ???
-//      val bufferId = C.FreshId("buffer")
-//      val values = values0 match {
+      val bufferId = C.FreshId("buffer")
+      val values = values0 match {
+        case ZeroInit => Some(Seq(C.Lit(Int32Lit(0)))) // TODO: Ok or special case it further?
+        case ListInit(exprs) => Some(exprs.map(rec(_)))
+        case Uninit => None
+        case other => ctx.reporter.fatalError(s"Got $other")
 //        case Right(values0) => values0.map(rec(_))
 //        case Left(_) =>
 //          // By default, 0-initialisation using only zero value
@@ -198,15 +204,15 @@ private class IR2CImpl()(using ctx: inox.Context) {
 //            case _ => ctx.reporter.fatalError(s"Unexpected integral type $arrayType")
 //          }
 //          Seq(C.Lit(z))
-//      }
-//      val bufferDecl = C.DeclArrayStatic(bufferId, rec(arrayType.base), length, values)
-//      val data = C.Binding(bufferId)
-//      val len = C.Lit(Int32Lit(length))
-//      val array = array2Struct(arrayType)
-//      val varInit = C.StructInit(array, data :: len :: Nil)
-//      val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
-//
-//      C.buildBlock(bufferDecl :: varDecl :: Nil)
+      }
+      val bufferDecl = C.DeclArrayStatic(bufferId, rec(arrayType.base), length, values)
+      val data = C.Binding(bufferId)
+      val len = C.Lit(Int32Lit(length))
+      val array = array2Struct(arrayType)
+      val varInit = C.StructInit(array, data :: len :: Nil)
+      val varDecl = C.Decl(rec(vd.id), array, Some(varInit))
+
+      C.buildBlock(bufferDecl :: varDecl :: Nil)
 
     case ArrayInit(ArrayAllocStatic(arrayType, length, values0)) =>
       ???

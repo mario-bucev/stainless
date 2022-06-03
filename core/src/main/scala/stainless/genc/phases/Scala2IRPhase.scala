@@ -938,7 +938,7 @@ private class S2IRImpl(override val s: tt.type,
     case array @ LargeArray(elems, default, size, base) =>
       if (elems.nonEmpty)
         reporter.fatalError(array.getPos, "Implementation limitation: cannot specify non-default values for arrays")
-
+      // TODO: interdire top-level complex init
       val arrayType = CIR.ArrayType(rec(base), None)
 
       // Convert to VLA or normal array
@@ -955,14 +955,6 @@ private class S2IRImpl(override val s: tt.type,
             }
           }
           CIR.ArrayAllocStatic(arrayType, length.toInt, values)
-//          val values = default match {
-//            case lit@BVLiteral(_, _, _) if lit.toBigInt == 0 => ???
-//            case default if isSuitableForMemset(default, arrayType.base) => ???
-//            case default => Right((0 until length.toInt) map { _ =>
-//              rec(exprOps.freshenLocals(default))
-//            })
-//          }
-//          CIR.ArrayAllocStatic(arrayType, length.toInt, values)
 
         // TODO: Do something similar to ArrayAllocStatic
         case length =>
@@ -1069,7 +1061,7 @@ private class S2IRImpl(override val s: tt.type,
     }
 
     irType match {
-      case tpe: PT.SizedPrimitiveType if tpe.byteSize == 1 => rec(e)
+      case CIR.PrimitiveType(tpe: PT.SizedPrimitiveType) if tpe.byteSize == 1 => rec(e)
       case _ => false
     }
   }

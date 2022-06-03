@@ -24,9 +24,8 @@ private[genc] sealed trait IR { ir =>
 
   type Id = String
   type ClassHierarchy = Set[ClassDef]
-  type ArrayInitValues
 
-  import PrimitiveTypes.{ PrimitiveType => PT, _ } // For desambiguation
+  import PrimitiveTypes.{ PrimitiveType => PT, _ } // For disambiguation
   import Literals._
   import Operators._
 
@@ -151,11 +150,12 @@ private[genc] sealed trait IR { ir =>
   // For optimisation of ArrayAllocStatic: avoid processing useless bits in GenC to speed up things for big arrays.
   case object Zero
 
-//  sealed abstract class ArrayInitValues
-//  case object ZeroInit extends ArrayInitValues
-//  case class MemSetInit(expr: Expr) extends ArrayInitValues
-//  case class ListInit(exprs: Seq[Expr]) extends ArrayInitValues
-//  case class CallByNameInit(expr: Expr) extends ArrayInitValues
+  sealed abstract class ArrayInitValues
+  case object Uninit extends ArrayInitValues
+  case object ZeroInit extends ArrayInitValues
+  case class MemSetInit(expr: Expr) extends ArrayInitValues
+  case class ListInit(exprs: Seq[Expr]) extends ArrayInitValues
+  case class CallByNameInit(expr: Expr) extends ArrayInitValues
 
   // Allocate an array with a compile-time size
   // TODO: Validate values
@@ -495,67 +495,13 @@ private[genc] sealed trait IR { ir =>
     case NoType => ??? // Idem for NoType
   }
 
-  // TODO: Name
-  /*def deconsConsAIV(arrayInitValues: ArrayInitValues): (Seq[Expr], Seq[Expr] => ArrayInitValues)*/
 }
 
 object IRs {
-
-  // TODO: Name
-  sealed trait PrenormArrayInitValuesIR extends IR {
-    type ArrayInitValues = ArrayInitVal
-
-    sealed abstract class ArrayInitVal
-    case object ZeroInit extends ArrayInitVal
-    case class MemSetInit(expr: Expr) extends ArrayInitVal
-    case class ListInit(exprs: Seq[Expr]) extends ArrayInitVal
-    case class CallByNameInit(expr: Expr) extends ArrayInitVal
-/*
-    override def deconsConsAIV(arrayInitValues: ArrayInitVal): (Seq[Expr], Seq[Expr] => ArrayInitVal) = arrayInitValues match {
-      case ZeroInit => (Seq.empty, _ => ZeroInit)
-      case MemSetInit(e) => (Seq(e), { case Seq(e) => MemSetInit(e) })
-      case ListInit(es) => (es, ListInit.apply)
-      case CallByNameInit(e) => (Seq(e), { case Seq(e) => CallByNameInit(e) })
-    }
-*/
-    //    object ArrayAllocStatic {
-    //      def apply(typ: ArrayType, length: Int, values: ArrayInitValues): ArrayAllocStatic = ???
-    //    require(
-    //      // No empty array
-    //      (length > 0) &&
-    //      (values match {
-    //        // TODO: Explanation
-    //        case ZeroInit => true
-    //        case MemSetInit(expr) => expr.getType match {
-    //          case tpe@PrimitiveType(pt: SizedPrimitiveType) => pt.byteSize == 1 && tpe <= typ.base
-    //          case _ => false
-    //        }
-    //        case ListInit(exprs) =>
-    //          // The number of values should match the array size
-    //          exprs.length == length &&
-    //          // The type of the values should match the type of the array elements
-    //          exprs.forall(_.getType <= typ.base)
-    //        case CallByNameInit(expr) =>
-    //          // Ditto
-    //          expr.getType <= typ.base
-    //      })
-    //    )
-    //    }
-  }
-
-  // TODO: Name
-  sealed trait NormArrayInitValuesIR extends IR {
-    type ArrayInitValues = ArrayInitVal
-
-    sealed abstract class ArrayInitVal
-    case object Uninit extends ArrayInitVal
-    case class ListInit(exprs: Seq[Expr]) extends ArrayInitVal // TODO: Say can be used for zero-initialising a whole array (e.g. arr[32] = {0})
-  }
-
-  object SIR extends IR with PrenormArrayInitValuesIR
-  object CIR extends IR with PrenormArrayInitValuesIR
-  object RIR extends IR with PrenormArrayInitValuesIR
-  object NIR extends IR with NormArrayInitValuesIR
-  object LIR extends IR with NormArrayInitValuesIR
+  object SIR extends IR
+  object CIR extends IR
+  object RIR extends IR
+  object NIR extends IR
+  object LIR extends IR
 }
 

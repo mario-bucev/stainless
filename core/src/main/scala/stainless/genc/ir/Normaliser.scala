@@ -53,7 +53,7 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
     val whileBody = {
       val (preElem, normElem) = flatten(unormElem, allowTopLevelApp = true, allowArray = false)
       val upd = to.Assign(to.ArrayAccess(arr, iBdg), normElem)
-      val inc = to.Assign(iBdg, to.BinOp(Operators.Plus, iBdg, to.Lit(Int32Lit(0))))
+      val inc = to.Assign(iBdg, to.BinOp(Operators.Plus, iBdg, to.Lit(Int32Lit(1))))
       preElem ++ Seq(upd, inc)
     }
     val whle = to.While(
@@ -68,40 +68,31 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
 
     case Decl(vd0, Some(ArrayInit(alloc0))) =>
       val vd = rec(vd0)
-      ???
-      /*
-      val (preAlloc, alloc) = alloc0 match {
+      val (preAlloc, alloc, initExpr) = alloc0 match {
         case ArrayAllocStatic(typ, length, ListInit(exprs0)) =>
           val (preValues, exprs) = flattenArgs(false, false, exprs0)
           val alloc = to.ArrayAllocStatic(recAT(typ), length, to.ListInit(exprs))
-
-          preValues -> alloc
+          (preValues, alloc, Seq.empty[to.Expr])
 
         case ArrayAllocStatic(typ, length, ZeroInit) =>
-          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.ListInit(Seq(to.Lit(Int8Lit(0)))))
-
-          Seq.empty -> alloc
+          val alloc = to.ArrayAllocStatic(recAT(typ), length, to.ZeroInit)
+          (Seq.empty[to.Expr], alloc, Seq.empty[to.Expr])
 
         case ArrayAllocStatic(typ, length, MemSetInit(expr0)) =>
           val alloc = to.ArrayAllocStatic(recAT(typ), length, to.Uninit)
-          val (preExpr, expr) = fillArrayMemset(Binding(vd), to.Lit(Int32Lit(length)), expr0)
-          preExpr -> to.buildBlock(Seq(alloc, expr))
+          // TODO: Can only be done in functions, and not in global context!!!!!!
+          val (preInitExpr, initExpr) = fillArrayMemset(to.Binding(vd), to.Lit(Int32Lit(length)), expr0)
+          (preInitExpr, alloc, Seq(initExpr))
 
         case ArrayAllocStatic(typ, length, CallByNameInit(expr0)) =>
           val alloc = to.ArrayAllocStatic(recAT(typ), length, to.Uninit)
-          val (preExpr, expr) = fillArrayByName(Binding(vd), to.Lit(Int32Lit(length)), expr0)
-          preExpr -> to.buildBlock(Seq(alloc, expr))
+          // TODO: Can only be done in functions, and not in global context!!!!!!
+          val (preInitExpr, initExpr) = fillArrayByName(to.Binding(vd), to.Lit(Int32Lit(length)), expr0)
+          (preInitExpr, alloc, Seq(initExpr))
 
-//        case ArrayAllocStatic(typ, length, Right(values0)) =>
-//          val (preValues, values) = flattenArgs(false, false, values0)
-//          val alloc = to.ArrayAllocStatic(recAT(typ), length, Right(values))
-//
-//          preValues -> alloc
-//
-//        case ArrayAllocStatic(typ, length, Left(_)) =>
-//          val alloc = to.ArrayAllocStatic(recAT(typ), length, Left(to.Zero))
-//
-//          Seq.empty -> alloc
+        case ArrayAllocStatic(typ, length, Uninit) =>
+          // TODO
+          ctx.reporter.fatalError("Cannot happen")
 
         // TODO: Il faudrait supprimer le valueInit de to.ArrayAllocVLA et faire l'init ici-meme?
         case ArrayAllocVLA(typ, length0, valueInit0) =>
@@ -116,14 +107,12 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
           }
 
           val alloc = to.ArrayAllocVLA(recAT(typ), length, valueInit)
-
-          preLength -> alloc
+          (preLength, alloc, Seq.empty[to.Expr])
       }
 
       val declinit = to.Decl(vd, Some(to.ArrayInit(alloc)))
 
-      combine(preAlloc :+ declinit) -> env
-      */
+      combine((preAlloc :+ declinit) ++ initExpr) -> env
 
     case Decl(vd0, Some(value0)) =>
       val vd = rec(vd0)
@@ -389,11 +378,8 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
       case to.BinOp(op, lhs, rhs) => rec(lhs) && rec(rhs)
       case to.UnOp(op, e0) => rec(e0)
       case to.App(to.FunVal(fd), extra, args) if allowTopLevelApp => fd.isPure && extra.forall(rec) && args.forall(rec)
-      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.Uninit)) => allowArray // TODO: ok?
+      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.Uninit | to.ZeroInit)) => allowArray // TODO: ok?
       case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ListInit(exprs))) => allowArray && exprs.forall(rec)
-//      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ZeroInit)) => allowArray
-//      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.MemSetInit(_) | to.CallByNameInit(_))) => false
-//      case to.ArrayInit(to.ArrayAllocStatic(_, _, to.ListInit(exprs))) => allowArray && exprs.forall(rec)
       case _ => false
     }
     rec(e)

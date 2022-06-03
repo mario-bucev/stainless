@@ -111,12 +111,16 @@ abstract class Transformer[From <: IR, To <: IR](final val from: From, final val
   protected def rec(vd: ValDef)(using Env): to.ValDef = to.ValDef(vd.id, rec(vd.typ), vd.isVar)
 
   protected def rec(alloc: ArrayAlloc)(using Env): to.ArrayAlloc = (alloc: @unchecked) match {
-    // TODO
-//    case ArrayAllocStatic(ArrayType(base, optLength), length, Right(values)) =>
-//      to.ArrayAllocStatic(to.ArrayType(rec(base), optLength), length, Right(values map rec))
-//
-//    case ArrayAllocStatic(ArrayType(base, optLength), length, Left(_)) =>
-//      to.ArrayAllocStatic(to.ArrayType(rec(base), optLength), length, Left(to.Zero))
+    case ArrayAllocStatic(ArrayType(base, optLength), length, values) =>
+      val recTpe = to.ArrayType(rec(base), optLength)
+      val recValues = values match {
+        case ZeroInit => to.ZeroInit
+        case Uninit => to.Uninit
+        case MemSetInit(e) => to.MemSetInit(rec(e))
+        case ListInit(es) => to.ListInit(es map rec)
+        case CallByNameInit(e) => to.CallByNameInit(rec(e))
+      }
+      to.ArrayAllocStatic(recTpe, length, recValues)
 
     case ArrayAllocVLA(ArrayType(base, optLength), length, valueInit) =>
       to.ArrayAllocVLA(to.ArrayType(rec(base), optLength), rec(length), rec(valueInit))
@@ -181,7 +185,5 @@ abstract class Transformer[From <: IR, To <: IR](final val from: From, final val
     case DroppedType => to.DroppedType
     case NoType => to.NoType
   }
-
-  protected def recAIV(aiv: ArrayInitValues): to.ArrayInitValues
 }
 

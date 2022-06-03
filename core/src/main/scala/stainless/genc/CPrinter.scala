@@ -251,8 +251,10 @@ class CPrinter(
 
     case Decl(id, typ, Some(value)) => c"${TypeId(typ, id)} = $value"
 
-    // TODO Visual "optimisation" can be made here if all values are zeros
-    case DeclArrayStatic(id, base, length, values) =>
+    case DeclArrayStatic(id, base, length, None) =>
+      c"$base $id[$length]"
+
+    case DeclArrayStatic(id, base, length, Some(values)) =>
       c"$base $id[$length] = { ${nary(values, sep = ", ")} }"
 
     case ArrayStatic(_, values) =>
