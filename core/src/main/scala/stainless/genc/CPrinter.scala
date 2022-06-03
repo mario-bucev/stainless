@@ -251,22 +251,24 @@ class CPrinter(
 
     case Decl(id, typ, Some(value)) => c"${TypeId(typ, id)} = $value"
 
-    case DeclArrayStatic(id, base, length, None) =>
-      c"$base $id[$length]"
-
-    case DeclArrayStatic(id, base, length, Some(values)) =>
-      c"$base $id[$length] = { ${nary(values, sep = ", ")} }"
+//    // TODO
+//    case DeclArrayStatic(id, base, length, None) =>
+//      c"$base $id[$length]"
+//
+//    case DeclArrayStatic(id, base, length, Some(values)) =>
+//      c"$base $id[$length] = { ${nary(values, sep = ", ")} }"
 
     case ArrayStatic(_, values) =>
       c"{ ${nary(values, sep = ", ")} }"
 
-    case DeclArrayVLA(id, base, length, defaultExpr) =>
-      val i = FreshId("i")
-      c"""|$base $id[$length];
-          |${Decl(i, Primitive(Int32Type), None)};
-          |for ($i = 0; $i < $length; ++$i) {
-          |    $id[$i] = $defaultExpr;
-          |}"""
+    case DeclArrayVLA(id, base, length) => c"$base $id[$length]"
+//    case DeclArrayVLA(id, base, length, defaultExpr) =>
+//      val i = FreshId("i")
+//      c"""|$base $id[$length];
+//          |${Decl(i, Primitive(Int32Type), None)};
+//          |for ($i = 0; $i < $length; ++$i) {
+//          |    $id[$i] = $defaultExpr;
+//          |}"""
 
     case StructInit(struct, values) =>
       val args = struct.fields zip values

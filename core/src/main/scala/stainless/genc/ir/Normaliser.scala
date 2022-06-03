@@ -36,12 +36,9 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
 
   // TODO: S'assurer que len est deja évalué (en vd ou un literal)
   private def fillArrayMemset(arr: to.Binding, normLen: to.Expr, unormElem: Expr)(using env: Env): (Seq[to.Expr], to.Expr) = {
-    val iVd = to.ValDef(freshId("i"), to.PrimitiveType(Int32Type), isVar = true)
-    val iBdg = to.Binding(iVd)
-    val iDecl = to.Decl(iVd, Some(to.Lit(Int32Lit(0))))
     val (preElem, normElem) = flatten(unormElem, allowTopLevelApp = true, allowArray = false)
     val memset = to.MemSet(arr, normElem, normLen)
-    (Seq(iDecl) ++ preElem) -> memset
+    preElem -> memset
   }
 
   // TODO: S'assurer que len est deja évalué (en vd ou un literal)
@@ -101,7 +98,7 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
           val (preLength1, length1) = flatten(length0, allowTopLevelApp = true, allowArray = false)
           // Make sure the length is a value
           val (preLength2, length2) = length1 match {
-            case _: Lit | _: Binding => (Seq.empty, length1) // The literal case should not arise, as we would have used an ArrayAllocStatic
+            case _: to.Lit | _: to.Binding => (Seq.empty, length1) // The literal case should not arise, as we would have used an ArrayAllocStatic
             case _ =>
               val lenVd = to.ValDef(freshId("len"), to.PrimitiveType(Int32Type), isVar = false)
               val lenDecl = to.Decl(lenVd, Some(length1))
@@ -481,6 +478,7 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
 
   private def freshNormVal(typ: to.Type, isVar: Boolean) = to.ValDef(freshId("norm"), typ, isVar)
 
+  // TODO: It's not unique because not shared across phases!!!!
   private def freshId(id: String): to.Id = id + "_" + freshCounter.next(id)
 
   private val freshCounter = new utils.UniqueCounter[String]()

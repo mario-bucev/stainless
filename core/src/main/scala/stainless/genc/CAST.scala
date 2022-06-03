@@ -125,12 +125,12 @@ object CAST { // C Abstract Syntax Tree
     require(optValue.forall(_.isValue), s"Initialisation $id = ${optValue.get} should be done with a value")
   }
 
-  // TODO: Merge with ArrayStatic
-  case class DeclArrayStatic(id: Id, base: Type, length: Int, values: Option[Seq[Expr]]) extends Expr {
-    require(values.forall(_.forall { _.isValue }),
-      s"Array initialisation of $id with ${values.mkString("{", ", ", "}")} should be done with values"
-    )
-  }
+//  // TODO: Merge with ArrayStatic
+//  case class DeclArrayStatic(id: Id, base: Type, length: Int, values: Option[Seq[Expr]]) extends Expr {
+//    require(values.forall(_.forall { _.isValue }),
+//      s"Array initialisation of $id with ${values.mkString("{", ", ", "}")} should be done with values"
+//    )
+//  }
 
   case class ArrayStatic(base: Type, values: Seq[Expr]) extends Expr {
     require(values forall { _.isValue },
@@ -138,9 +138,9 @@ object CAST { // C Abstract Syntax Tree
     )
   }
 
-  case class DeclArrayVLA(id: Id, base: Type, length: Expr, defaultExpr: Expr) extends Expr {
+  case class DeclArrayVLA(id: Id, base: Type, length: Expr) extends Expr { // , defaultExpr: Expr
     require(length.isValue, s"Length $length of array $id should be a value")
-    require(defaultExpr.isValue, s"Default expression $defaultExpr of of array $id should be a value")
+//    require(defaultExpr.isValue, s"Default expression $defaultExpr of of array $id should be a value")
   }
 
   // Initialise all the fields of a struct, in the same order as they are declared.
