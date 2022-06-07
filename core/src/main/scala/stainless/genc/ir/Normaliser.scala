@@ -9,6 +9,7 @@ import Literals._
 import Operators._
 import IRs._
 
+// TODO: On aura besoin d'un in-place update/construction pour les arrays
 /*
  * Flatten out block expressions in argument-like position (e.g. function argument, while
  * condition, ...) and ensure execution order match between Scala & C execution models by
@@ -41,11 +42,13 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
       val vd = rec(vd0)
       val (preAlloc, alloc, initExpr) = alloc0 match {
         case ArrayAllocStatic(typ, length, values0) =>
-          val (preInitExpr, values, initExpr) = recArrayInitValues(to.Binding(vd), to.Lit(Int32Lit(length)), values0)
-          val alloc = to.ArrayAllocStatic(recAT(typ), length, values)
+          val recTpe = recAT(typ)
+          val (preInitExpr, values, initExpr) = recArrayInitValues(to.Binding(vd), recTpe.base, to.Lit(Int32Lit(length)), values0)
+          val alloc = to.ArrayAllocStatic(recTpe, length, values)
           (preInitExpr, alloc, initExpr)
 
         case ArrayAllocVLA(typ, length0, values0) =>
+          val recTpe = recAT(typ)
           // Here it's fine to do two independent normalisations because there will be a
           // sequence point between the length and the value in the C code anyway.
           val (preLength1, length1) = flatten(length0, allowTopLevelApp = true, allowArray = false)
@@ -57,8 +60,8 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
               val lenDecl = to.Decl(lenVd, Some(length1))
               (Seq(lenDecl), to.Binding(lenVd))
           }
-          val (preInitExpr, values, initExpr) = recArrayInitValues(to.Binding(vd), length2, values0)
-          val alloc = to.ArrayAllocVLA(recAT(typ), length2, values.asVLACompatible)
+          val (preInitExpr, values, initExpr) = recArrayInitValues(to.Binding(vd), recTpe.base, length2, values0)
+          val alloc = to.ArrayAllocVLA(recTpe, length2, values.asVLACompatible)
           (preLength1 ++ preLength2 ++ preInitExpr, alloc, initExpr)
       }
 
@@ -250,26 +253,29 @@ final class Normaliser(val ctx: inox.Context) extends Transformer(CIR, NIR) with
     case _ => ctx.reporter.fatalError(s"$e is not handled (${e.getClass}) by the normaliser")
   }
 
-  private def recArrayInitValues(arr: to.Binding, normLen: to.Expr, values: ArrayInitValues)(using env: Env): (Seq[to.Expr], to.ArrayInitValues, Seq[to.Expr]) = values match {
+  private def recArrayInitValues(arr: to.Binding, baseTpe: to.Type, normLen: to.Expr, values: ArrayInitValues)(using env: Env): (Seq[to.Expr], to.ArrayInitValues, Seq[to.Expr]) = values match {
     case ListInit(exprs0) =>
       val (preValues, exprs) = flattenArgs(false, false, exprs0)
       (preValues, to.ListInit(exprs), Seq.empty)
 
     case MemSetInit(expr0) =>
-      val (preInitExpr, initExpr) = fillArrayMemset(arr, normLen, expr0)
+      val (preInitExpr, initExpr) = fillArrayMemset(arr, baseTpe, normLen, expr0)
       (preInitExpr, to.Uninit, Seq(initExpr))
 
     case CallByNameInit(expr0) =>
       val (preInitExpr, initExpr) = fillArrayByName(arr, normLen, expr0)
       (preInitExpr, to.Uninit, Seq(initExpr))
 
+    // TODO: Comment
     case Uninit =>
-      ctx.reporter.fatalError(s"$arr somehow set to Uninit")
+      (Seq.empty, to.Uninit, Seq.empty)
+      // ctx.reporter.fatalError(s"$arr somehow set to Uninit")
   }
 
-  private def fillArrayMemset(arr: to.Binding, normLen: to.Expr, unormElem: Expr)(using env: Env): (Seq[to.Expr], to.Expr) = {
+  private def fillArrayMemset(arr: to.Binding, baseTpe: to.Type, normLen: to.Expr, unormElem: Expr)(using env: Env): (Seq[to.Expr], to.Expr) = {
     val (preElem, normElem) = flatten(unormElem, allowTopLevelApp = true, allowArray = false)
-    val memset = to.MemSet(arr, normElem, normLen)
+    // This memset(arr[0], ...) will later get transformed into memset(arr.data[0], ...) and then memset(&arr.data[0], ...)
+    val memset = to.MemSet(to.ArrayAccess(arr, to.Lit(Int32Lit(0))), normElem, to.BinOp(Operators.Times, normLen, to.SizeOf(baseTpe)))
     preElem -> memset
   }
 

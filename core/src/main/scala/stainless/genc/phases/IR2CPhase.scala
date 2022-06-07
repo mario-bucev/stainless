@@ -169,6 +169,7 @@ private class IR2CImpl()(using ctx: inox.Context) {
 
     case Decl(vd, None) => C.Decl(rec(vd.id), rec(vd.getType), None)
 
+/*
     case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) if topLevelDecl && vd.typ.isFixedArray =>
       // Top level declaration (appearing in global scope).
       // Such arrays must be list-initialized (as we are not allowed to have statements to fill the array)
@@ -177,6 +178,24 @@ private class IR2CImpl()(using ctx: inox.Context) {
         case other => ctx.reporter.fatalError(s"Array $vd appearing in top-level may only be initialized with a list")
       }
       C.Decl(rec(vd.id), rec(vd.typ), Some(C.ArrayStatic(rec(arrayType.base), values)))
+*/
+    // TODO: Voir si c'est ok
+
+    case Decl(vd, Some(ArrayInit(ArrayAllocStatic(arrayType, length, values0)))) if vd.typ.isFixedArray =>
+      val values = values0 match {
+        case ListInit(exprs) => Some(C.ArrayStatic(rec(arrayType.base), exprs.map(rec(_))))
+        case Uninit =>
+          if (topLevelDecl) {
+            // Top level declaration (appearing in global scope).
+            // Such arrays must be list-initialized (as we are not allowed to have statements to fill the array),
+            ctx.reporter.fatalError(s"Array $vd appearing in top-level may only be initialized with a list")
+          } else {
+            // Arrays appearing in function scope, these will be init. with a separate, following statement
+            None
+          }
+        case other => ctx.reporter.fatalError(s"Array $vd may only be initialized with a list or left uninitialized if local to a function")
+      }
+      C.Decl(rec(vd.id), rec(vd.typ), values)
 
     case Decl(vd, Some(arrInit@ArrayInit(_))) =>
       recArrayDecl(vd, arrInit)
@@ -314,6 +333,7 @@ private class IR2CImpl()(using ctx: inox.Context) {
     case Break => C.Break
   }
 
+  // TODO: ça c'est uniquement si vd est un array qui n'est pas fixed-size
   private def recArrayDecl(vd: ValDef, arrInit: ArrayInit): C.Expr = {
     val bufferId = C.FreshId("buffer")
     val recBaseTpe = rec(arrInit.alloc.typ.base)

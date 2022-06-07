@@ -89,7 +89,7 @@ final class IRPrinter[S <: IR](val ir: S) {
     }
   }
 
-  private def rec(e: Expr)(using ptx: Context): String = (e: @unchecked) match {
+  private def rec(e: Expr)(using ptx: Context): String = e match {
     case Binding(vd) => "[[ " + vd.id + ": " + rec(vd.getType) + " ]]"
     case FunVal(fd) => "@" + fd.id
     case FunRef(e) => "@{" + rec(e) + "}"
@@ -126,7 +126,7 @@ final class IRPrinter[S <: IR](val ir: S) {
     case Break => "break"
   }
 
-  private def rec(typ: Type)(using Context): String = (typ: @unchecked) match {
+  private def rec(typ: Type)(using Context): String = typ match {
     case PrimitiveType(pt) => pt.toString
     case FunType(ctx, params, ret) =>
       "Function[" + (ctx map rec mkString ", ") + "][" + (params map rec mkString ", ") + "]: " + rec(ret)

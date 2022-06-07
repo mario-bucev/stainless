@@ -421,6 +421,26 @@ private[genc] sealed trait IR { ir =>
       case NoType => false
     }
 
+    def containsVLA: Boolean = this match {
+      case PrimitiveType(_) => false
+
+      // Functions currently do not capture anything
+      case FunType(_, _, _) => false
+
+      // We do *NOT* answer this question for the whole class hierarchy!
+      case ClassType(clazz) => clazz.fields exists { _._1.getType.containsVLA }
+
+      case ArrayType(_, len) => len.isEmpty
+      case ReferenceType(t) => t.containsVLA
+
+      // We assume typeDefs don't contain arrays
+      case TypeDefType(_, _, _, _) => false
+
+      case DroppedType => false
+
+      case NoType => false
+    }
+
     def isMutable: Boolean = this match {
       case PrimitiveType(_) => false
 

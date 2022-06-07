@@ -260,7 +260,7 @@ object CAST { // C Abstract Syntax Tree
     private def isValue = e match {
       case _: Binding | _: Lit | _: EnumLiteral | _: StructInit | _: ArrayStatic |
            _: UnionInit | _: Call | _: FieldAccess | _: ArrayAccess |
-           _: Ref | _: Deref | _: BinOp | _: UnOp | _: Cast => true
+           _: Ref | _: Deref | _: BinOp | _: UnOp | _: Cast | _: SizeOf => true
       case _ => false
     }
 

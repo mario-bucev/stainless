@@ -163,17 +163,6 @@ private class S2IRImpl(override val s: tt.type,
     CIR.Binding(newVD)
   }
 
-  private def onlyZeroes(e: Expr): Boolean = e match {
-    case BooleanLiteral(lit) => !lit
-    case BVLiteral(_, bitset, _) => bitset.isEmpty
-    case ClassConstructor(ct, args) =>
-      val cd = syms.getClass(ct.id)
-      cd.parents.isEmpty && cd.children.isEmpty && args.forall(onlyZeroes)
-    case FiniteArray(elems, _) => elems.forall(onlyZeroes)
-    case LargeArray(elems, default, _, _) => elems.values.forall(onlyZeroes) && onlyZeroes(default)
-    case _ => false
-  }
-
   private def buildLet(x: ValDef, e: Expr, body: Expr, isVar: Boolean)
                       (using env: Env, tm: TypeMapping): CIR.Expr = {
     val tpe = rec(x.tpe)
@@ -921,19 +910,23 @@ private class S2IRImpl(override val s: tt.type,
       ))
 
     case array @ FiniteArray(elems, base) =>
-      val arrayType = CIR.ArrayType(rec(base), None)
+      // TODO: arrayType mais sans size, meme pour fixed-size???
+//      val arrayType = CIR.ArrayType(rec(base), None)
       val length = elems.size
+      val arrayType = CIR.ArrayType(rec(base), Some(length))
       CIR.ArrayInit(CIR.ArrayAllocStatic(arrayType, length, CIR.ListInit(elems.map(rec))))
 
     case array @ LargeArray(elems, default, size, base) =>
       if (elems.nonEmpty)
         reporter.fatalError(array.getPos, "Implementation limitation: cannot specify non-default values for arrays")
 
-      val arrayType = CIR.ArrayType(rec(base), None)
+      // TODO: arrayType mais sans size, meme pour fixed-size???
+//      val arrayType = CIR.ArrayType(rec(base), None)
+      val baseRec = rec(base)
       val values: CIR.VLAInitCompatible = {
-        if (onlyZeroes(default)) {
+        if (isSuitableForZeroMemset(default)) {
           CIR.MemSetInit(CIR.Lit(L.Int8Lit(0)))
-        } else if (isSuitableForMemset(default, arrayType.base)) {
+        } else if (isSuitableForByteMemset(default, baseRec)) {
           CIR.MemSetInit(rec(default))
         } else {
           CIR.CallByNameInit(rec(default))
@@ -942,13 +935,15 @@ private class S2IRImpl(override val s: tt.type,
       // Convert to VLA or normal array
       val alloc = rec(exprOps.simplifyArithmetic(size)) match {
         case CIR.Lit(L.Int32Lit(length)) =>
-          CIR.ArrayAllocStatic(arrayType, length.toInt, values)
+          if (baseRec.containsVLA) // TODO: There is a not saying that class hierarchy may contain array
+            reporter.fatalError(array.getPos, "Arrays cannot have elements being/containing VLAs")
+          CIR.ArrayAllocStatic(CIR.ArrayType(baseRec, Some(length.toInt)), length.toInt, values)
 
         case length =>
-          if (arrayType.base.containsArray)
+          if (baseRec.containsArray) // TODO: There is a not saying that class hierarchy may contain array
             reporter.fatalError(array.getPos, "VLAs cannot have elements being/containing other array")
 
-          CIR.ArrayAllocVLA(arrayType, length, values)
+          CIR.ArrayAllocVLA(CIR.ArrayType(baseRec, None), length, values)
       }
 
       CIR.ArrayInit(alloc)
@@ -1012,7 +1007,24 @@ private class S2IRImpl(override val s: tt.type,
   }
 
 
-  def isSuitableForMemset(e: Expr, irType: CIR.Type): Boolean = {
+  // TODO: Mention the "catch" there is for array: they are not all zeroes due du the need of having a field for size (concerns arrays of arrays)
+  private def isSuitableForZeroMemset(e: Expr): Boolean = {
+    def rec(e: Expr, outerMost: Boolean = false): Boolean = e match {
+      case BooleanLiteral(lit) => !lit
+      case BVLiteral(_, bitset, _) => bitset.isEmpty
+      case ClassConstructor(ct, args) =>
+        // TODO: For classes, we can memset them and initialize their tag in a separate statement (like for arrays)
+        val cd = syms.getClass(ct.id)
+        cd.parents.isEmpty && cd.children.isEmpty && args.forall(rec(_))
+      case FiniteArray(elems, _) => outerMost && elems.forall(rec(_))
+      case LargeArray(elems, default, _, _) => outerMost && elems.values.forall(rec(_)) && rec(default)
+      case _ => false
+    }
+    rec(e, outerMost = true)
+  }
+
+  // TODO: Say difference wit the zero memset
+  private def isSuitableForByteMemset(e: Expr, irType: CIR.Type): Boolean = {
     def rec(e: Expr): Boolean = e match {
       case _: Variable => true
       case _: Literal[t] => true
