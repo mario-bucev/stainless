@@ -27,6 +27,7 @@ package object extraction {
     "UserFiltering"             -> "Remove all the library functions not used by the user",
     "Preprocessing"             -> "A preprocessing phase before the pipeline",
     "PartialFunctions"          -> "Lift partial function preconditions",
+    "LocalNullElimination"      -> "EXPERIMENTAL",
     "XlangLowering"             -> "Lowering phase at the end of xlang phases",
     "InnerClasses"              -> "Lift inner classes",
     "Laws"                      -> "Rewrite laws as abstract functions with contracts",

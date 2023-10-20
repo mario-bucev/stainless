@@ -15,6 +15,7 @@ import core.StdNames._
 import core.Symbols._
 import core.Types._
 import core.Flags._
+import core.Constants._
 import core.NameKinds
 import util.{NoSourcePosition, SourcePosition}
 import stainless.ast.SymbolIdentifier
@@ -1765,6 +1766,9 @@ class CodeExtraction(inoxCtx: inox.Context, symbolMapping: SymbolMapping)(using 
 
     case c@ExCall(rec, sym, tps, args) =>
       extractCall(c, rec, sym, tps, args)
+
+    case Literal(c @ Constant(_)) if c.tpe == defn.NullType =>
+      xt.NullLit()
 
     // default behaviour is to complain :)
     case _ => outOfSubsetError(tr, s"Stainless does not support expression: `$tr`")

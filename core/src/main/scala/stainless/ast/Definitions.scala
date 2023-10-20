@@ -80,7 +80,8 @@ trait Definitions extends inox.ast.Definitions { self: Trees =>
 
       def get[T <: Definition : ClassTag](name: String): Option[T] = {
         if (classTag[ADTSort].runtimeClass.isAssignableFrom(classTag[T].runtimeClass)) find(name, sorts)
-        else if (classTag[FunDef].runtimeClass.isAssignableFrom(classTag[T].runtimeClass)) find(name, functions)
+        else if (classTag[FunDef].runtimeClass.isAssignableFrom(classTag[T].runtimeClass))
+          find(name, functions)
         else None
       }.asInstanceOf[Option[T]]
 

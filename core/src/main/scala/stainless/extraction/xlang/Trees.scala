@@ -55,6 +55,12 @@ trait Trees extends innerclasses.Trees { self =>
     def allTypeDefs: Seq[Identifier] = modules.flatMap(_.allTypeDefs) ++ typeDefs
   }
 
+//  case class NullType() extends Type
+
+  case class NullLit() extends Expr {
+    override def getType(using Symbols): Type = NothingType()
+  }
+
   override def getDeconstructor(that: inox.ast.Trees): inox.ast.TreeDeconstructor { val s: self.type; val t: that.type } = that match {
     case tree: (Trees & that.type) => // The `& that.type` trick allows to convince scala that `tree` and `that` are actually equal...
       class DeconstructorImpl(override val s: self.type, override val t: tree.type & that.type) extends ConcreteTreeDeconstructor(s, t)
@@ -115,6 +121,10 @@ trait Printer extends innerclasses.Printer {
                                 |"""
       p"|}"
 
+//    case NullType() => p"Null"
+
+    case NullLit() => p"null"
+
     case _ => super.ppBody(tree)
   }
 }
@@ -133,6 +143,17 @@ trait TreeDeconstructor extends innerclasses.TreeDeconstructor {
     case s.StrictBV => (Seq(), Seq(), Seq(), (_, _, _) => t.StrictBV)
     case _ => super.deconstruct(f)
   }
+
+  override def deconstruct(e: s.Expr): Deconstructed[t.Expr] = e match {
+    case s.NullLit() =>
+      (Seq(), Seq(), Seq(), Seq(), Seq(), (_, _, _, _, _) => t.NullLit())
+
+    case _ => super.deconstruct(e)
+  }
+//  override def deconstruct(tpe: s.Type): Deconstructed[t.Expr] = tpe match {
+//    case s.NullLit() => (Seq(), Seq(), Seq(), Seq(), Seq(), (_, _, _, _, _) => t.NullLit())
+//    case _ => super.deconstruct(tpe)
+//  }
 }
 
 class ConcreteTreeDeconstructor(override val s: Trees, override val t: Trees) extends TreeDeconstructor
