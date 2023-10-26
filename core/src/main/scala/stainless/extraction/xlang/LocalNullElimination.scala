@@ -501,6 +501,34 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       }
     }
 
+    def getUnderlyingUninitIdOf(info: FieldInfo, newFld: ValDef): Identifier = {
+      val ClassType(fldClsId, tps) = getAsClassType(newFld.tpe)
+      if (info.nullable) {
+        assert(fldClsId == optionMutDefs.option.id && tps.size == 1)
+        val ClassType(fldClsId2, tps2) = getAsClassType(tps.head)
+        assert(tps2.isEmpty)
+        fldClsId2
+      } else {
+        assert(tps.isEmpty)
+        fldClsId
+      }
+    }
+
+    def mkMatchExpr(scrut: Expr, origCls: Identifier)
+                   (ctOfLeafCls: Identifier => ClassType)
+                   (bodyBuilder: (Variable, Identifier) => Expr): MatchExpr = {
+      val allLeafs = descendantsMap(origCls).filter(isLeaf)
+      val cases = allLeafs.toSeq.map { leafCls =>
+        val ct = ctOfLeafCls(leafCls)
+        val binder = ValDef(FreshIdentifier(leafCls.name.take(1).toLowerCase), ct)
+        val nbFields = symbols.classes(leafCls).fields.size
+        val pat = ClassPattern(Some(binder), ct, Seq.fill(nbFields)(WildcardPattern(None)))
+        val rhs = bodyBuilder(binder.toVariable, leafCls)
+        MatchCase(pat, None, rhs)
+      }
+      MatchExpr(scrut, cases)
+    }
+
     def mkIsInitFd(origCls: Identifier): FunDef = {
       val uninitCls = init2uninit(origCls)
 
@@ -525,18 +553,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             }
             val isInit = {
               if (!info.fullyInit) {
-                val fldClsUninit = {
-                  val ClassType(fldClsId, tps) = getAsClassType(newFld.tpe)
-                  if (info.nullable) {
-                    assert(fldClsId == optionMutDefs.option.id && tps.size == 1)
-                    val ClassType(fldClsId2, tps2) = getAsClassType(tps.head)
-                    assert(tps2.isEmpty)
-                    fldClsId2
-                  } else {
-                    assert(tps.isEmpty)
-                    fldClsId
-                  }
-                }
+                val fldClsUninit = getUnderlyingUninitIdOf(info, newFld)
                 val fldClsInit = uninit2init(fldClsUninit)
                 Seq(MethodInvocation(fldGet, isInitIds(fldClsInit), Seq.empty, Seq.empty))
               } else Seq.empty[Expr]
@@ -549,18 +566,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       val body = {
         val thiss = This(ClassType(uninitCls, Seq.empty))
         if (isLeaf(origCls)) bodyBuilder(thiss, origCls)
-        else {
-          val allLeafs = descendantsMap(origCls).filter(isLeaf)
-          val cases = allLeafs.toSeq.map { leafCls =>
-            val ct = ClassType(init2uninit(leafCls), Seq.empty)
-            val binder = ValDef(FreshIdentifier(leafCls.name.take(1).toLowerCase), ct)
-            val nbFields = symbols.classes(leafCls).fields.size
-            val pat = ClassPattern(Some(binder), ct, Seq.fill(nbFields)(WildcardPattern(None)))
-            val rhs = bodyBuilder(binder.toVariable, leafCls)
-            MatchCase(pat, None, rhs)
-          }
-          MatchExpr(thiss, cases)
-        }
+        else mkMatchExpr(thiss, origCls)(leafCls => ClassType(init2uninit(leafCls), Seq.empty))(bodyBuilder)
       }
       new FunDef(
         isInitIds(origCls),
@@ -568,29 +574,87 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         Seq.empty,
         BooleanType(),
         body,
-        Seq(IsMethodOf(uninitCls), Final, Derived(None), Extern) // TODO: Rm extern
+        Seq(IsMethodOf(uninitCls), Final, Derived(None))
       )
     }
     def mkToInitFd(origCls: Identifier): FunDef = {
       val uninitCls = init2uninit(origCls)
+
+      def bodyBuilder(recv: Expr, origCls: Identifier): Expr = {
+        val infos = classesConsInfo(origCls)
+        val origFields = classes(origCls).fields
+        val uninitCls = init2uninit(origCls)
+        val args = origFields.zipWithIndex.map { case (origField, fldIx) =>
+          val newFld = newFieldsMap(origCls)(fldIx)
+          val sel = ClassSelector(recv, newFld.id)
+          val info = infos.fields(origField.id)
+          val get = {
+            if (info.nullable) MethodInvocation(sel, optionMutDefs.get.id, Seq.empty, Seq.empty)
+            else sel
+          }
+          if (!info.fullyInit) {
+            val fldClsUninit = getUnderlyingUninitIdOf(info, newFld)
+            val fldClsInit = uninit2init(fldClsUninit)
+            MethodInvocation(get, toInitIds(fldClsInit), Seq.empty, Seq.empty)
+          } else get
+        }
+        ClassConstructor(ClassType(origCls, Seq.empty), args)
+      }
+
+      val thiss = This(ClassType(uninitCls, Seq.empty))
+      val bodyNoReq = {
+        if (isLeaf(origCls)) bodyBuilder(thiss, origCls)
+        else mkMatchExpr(thiss, origCls)(leafCls => ClassType(init2uninit(leafCls), Seq.empty))(bodyBuilder)
+      }
+      val bodyWithReq = Require(MethodInvocation(thiss, isInitIds(origCls), Seq.empty, Seq.empty), bodyNoReq)
       new FunDef(
         toInitIds(origCls),
         Seq.empty,
         Seq.empty,
         ClassType(origCls, Seq.empty),
-        NoTree(ClassType(origCls, Seq.empty)), // TODO
-        Seq(IsMethodOf(uninitCls), Final, Derived(None), Extern) // TODO: Rm extern
+        bodyWithReq,
+        Seq(IsMethodOf(uninitCls), Final, Derived(None))
       )
     }
     def mkFromInitFd(origCls: Identifier): FunDef = {
       val uninitCls = init2uninit(origCls)
       val fromInitVd = ValDef(FreshIdentifier("init"), ClassType(origCls, Seq.empty))
+
+      def bodyBuilder(recv: Expr, origCls: Identifier): Expr = {
+        val infos = classesConsInfo(origCls)
+        val origFields = classes(origCls).fields
+        val uninitCls = init2uninit(origCls)
+        val args = origFields.zipWithIndex.map { case (origField, fldIx) =>
+          val newFld = newFieldsMap(origCls)(fldIx)
+          val sel = ClassSelector(recv, origField.id)
+          val info = infos.fields(origField.id)
+          val fromInit = {
+            if (!info.fullyInit) {
+              val fldClsUninit = getUnderlyingUninitIdOf(info, newFld)
+              val fldClsInit = uninit2init(fldClsUninit)
+              FunctionInvocation(fromInitIds(fldClsInit), Seq.empty, Seq(sel))
+            }
+            else sel
+          }
+          if (info.nullable) {
+            val ClassType(optId, tps) = getAsClassType(newFld.tpe)
+            assert(optId == optionMutDefs.option.id && tps.size == 1)
+            ClassConstructor(ClassType(optionMutDefs.some.id, tps), Seq(fromInit))
+          }
+          else fromInit
+        }
+        ClassConstructor(ClassType(uninitCls, Seq.empty), args)
+      }
+      val body = {
+        if (isLeaf(origCls)) bodyBuilder(fromInitVd.toVariable, origCls)
+        else mkMatchExpr(fromInitVd.toVariable, origCls)(ClassType(_, Seq.empty))(bodyBuilder)
+      }
       new FunDef(
         fromInitIds(origCls),
         Seq.empty,
         Seq(fromInitVd),
         ClassType(uninitCls, Seq.empty),
-        NoTree(ClassType(uninitCls, Seq.empty)), // TODO
+        body,
         Seq(Derived(None))
       )
     }
