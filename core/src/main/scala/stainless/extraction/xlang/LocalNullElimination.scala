@@ -62,7 +62,6 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     (resSyms, exSum)
   }
 
-  // TODO: Quid ClassType tps uninit???
   private class Eliminator(tc: TransformerContext) extends inox.transformers.Transformer {
     override val s: self.s.type = self.s
     override val t: self.t.type = self.t
@@ -101,10 +100,11 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           else e
         }
         val (e2, tpe2) = {
+          // TODO: May need cast (non-sealed)
           if (!resFullyInit) {
-            (FunctionInvocation(uninitCd.fromInit.id, clsTps, Seq(e1)).copiedFrom(e), ClassType(uninitCd.cd.id, clsTps))
+            (FunctionInvocation(uninitCd.fromInitId, clsTps, Seq(e1)).copiedFrom(e), ClassType(uninitCd.cd.id, clsTps))
           } else {
-            (MethodInvocation(e1, uninitCd.toInit.id, Seq.empty, Seq.empty).copiedFrom(e), ClassType(clsId, clsTps))
+            (MethodInvocation(e1, uninitCd.toInitId, Seq.empty, Seq.empty).copiedFrom(e), ClassType(clsId, clsTps))
           }
         }
         if (resNullable) some(e2, tpe2) else e2
@@ -295,7 +295,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
               val ClassType(clsId, clsTps) = getAsClassType(eTpe)
               assert(clsTps.isEmpty)
               val uninitCd = tc.uninitClasses.init2cd(clsId)
-              (FunctionInvocation(uninitCd.fromInit.id, clsTps, Seq(e2)).copiedFrom(e), ClassType(uninitCd.cd.id, clsTps))
+              // TODO: May need cast (non-sealed)
+              (FunctionInvocation(uninitCd.fromInitId, clsTps, Seq(e2)).copiedFrom(e), ClassType(uninitCd.cd.id, clsTps))
             }
           }
           if (resNullable) some(e3, e3Tpe) else e3
@@ -331,91 +332,270 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
   case class UninitClassDefs(init2cd: Map[Identifier, UninitClassDef],
                              uninit2init: Map[Identifier, Identifier]) {
     def allNewClasses: Seq[ClassDef] = init2cd.values.map(_.cd).toSeq
-    def allNewFunctions: Seq[FunDef] = init2cd.values.flatMap(ucd => Seq(ucd.fromInit, ucd.toInit)).toSeq
+    def allNewFunctions: Seq[FunDef] = init2cd.values.flatMap {
+      case p: UninitClassDef.Parent => Seq(p.isInit, p.toInitFd, p.fromInitFd)
+      case _: UninitClassDef.LeafOrIntermediate => Seq.empty
+    }.toSeq
   }
-  case class UninitClassDef(cd: ClassDef, toInit: FunDef, fromInit: FunDef)
+  enum UninitClassDef {
+    case Parent(cd_ : ClassDef, isInit: FunDef, toInitFd: FunDef, fromInitFd: FunDef, hasDescendants: Boolean)
+    case LeafOrIntermediate(cd_ : ClassDef, isInitId_ : Identifier, toInitId_ : Identifier, fromInitId_ : Identifier)
 
+    def cd: ClassDef = this match {
+      case p: Parent => p.cd_
+      case li: LeafOrIntermediate => li.cd_
+    }
+    def isInitId: Identifier = this match {
+      case p: Parent => p.isInit.id
+      case li: LeafOrIntermediate => li.isInitId_
+    }
+    def toInitId: Identifier = this match {
+      case p: Parent => p.toInitFd.id
+      case li: LeafOrIntermediate => li.toInitId_
+    }
+    def fromInitId: Identifier = this match {
+      case p: Parent => p.fromInitFd.id
+      case li: LeafOrIntermediate => li.fromInitId_
+    }
+  }
+//  case class UninitClassDef(cd: ClassDef, toInit: FunDef, fromInit: FunDef)
+
+  // TODO: Don't force OptionMut if we can avoid it
   private def createUninitClasses(symbols: Symbols,
                                   optionMutDefs: OptionMutDefs,
                                   classesConsInfo: Map[Identifier, ClassConsInfo]): UninitClassDefs = {
+    import scala.collection.mutable
     import symbols._
     import exprOps._
     given Symbols = symbols
 
-    // TODO: Non, seulement les classes pour qui c'est necessaire!!!
-    // TODO: Sans oublier la hierarchie!!!
-    val init2uninit = classesConsInfo.keySet.map(id => id -> (ast.SymbolIdentifier(s"${id.name}Uninit") : Identifier)).toMap
+    def topParentOf(cls: Identifier): Identifier = {
+      val parents = symbols.classes(cls).parents
+      // Though a ClassDef supports for multiple parents, Stainless only supports for single inheritance
+      // (see FragmentChecker)
+      assert(parents.size <= 1)
+      if (parents.isEmpty) cls
+      else topParentOf(parents.head.id)
+    }
+    def descendants(cls: Identifier): Set[Identifier] = {
+      val children = symbols.classes(cls).children
+      if (children.isEmpty) Set(cls)
+      else Set(cls) ++ children.flatMap(c => descendants(c.id) + c.id).toSet
+    }
 
-    // TODO: Il faut aussi "isInit"
+    // TODO: issealed: we must require all known hierarchy
+
+    val initNeedUninit = classesConsInfo.filter(_._2.needsUninit).keySet
+    val needUninit = mutable.HashSet.empty[Identifier]
+    val topParentOfMap = mutable.Map.empty[Identifier, Identifier]
+    val descendantsMap = mutable.Map.empty[Identifier, Set[Identifier]]
+    for (cls <- initNeedUninit) {
+      val p = topParentOf(cls)
+      if (!needUninit(p)) {
+        val desc = descendants(p)
+        assert(desc(cls))
+        assert(desc(p))
+        needUninit ++= desc
+        desc.foreach(topParentOfMap += _ -> p)
+        descendantsMap(p) = desc
+      }
+      // otherwise: we've already processed this hierarchy
+    }
+    for (cls <- needUninit; if !descendantsMap.contains(cls)) {
+      val desc = descendants(cls)
+      assert(desc(cls))
+      descendantsMap(cls) = desc
+    }
+
+    def isAbstract(cls: Identifier): Boolean = {
+      val res = descendantsMap(cls).size > 1
+      // Sanity check
+      assert(symbols.classes(cls).isAbstract == res)
+      res
+    }
+    def isLeaf(cls: Identifier): Boolean = {
+      val res = descendantsMap(cls).size == 1
+      // Sanity check
+      assert(!symbols.classes(cls).isAbstract == res)
+      res
+    }
+    def isTopParent(cls: Identifier): Boolean = topParentOfMap(cls) == cls
+
+    topParentOfMap.values.find(p => !symbols.classes(p).isSealed && !isLeaf(p)) match {
+      case Some(p) => throw MalformedStainlessCode(symbols.classes(p), "Cannot use uninitialized fields on non-sealed hierarchies")
+      case None => ()
+    }
+
+    //////////////////////////////////////////
+    def generateFnIdentifier(nme: String): Map[Identifier, Identifier] = {
+      // 1 fn per hierarchy
+      val fnIds = topParentOfMap.values.toSet.map(_ -> (ast.SymbolIdentifier(nme) : Identifier)).toMap
+      // All the classes of the same hierarchy get that fn name
+      needUninit.map(cls => cls -> fnIds(topParentOfMap(cls))).toMap
+    }
+
+    val init2uninit = needUninit.map(id => id -> (ast.SymbolIdentifier(s"${id.name}Uninit"): Identifier)).toMap
+    val uninit2init = init2uninit.map { case (init, uninit) => (uninit, init) }
+
+    def createNewFields(cls: Identifier): Seq[ValDef] = {
+      val origCD = symbols.getClass(cls)
+      if (isLeaf(cls)) {
+        val info = classesConsInfo(cls)
+        origCD.fields.map { origVd =>
+          val fldInfo = info.fields(origVd.id)
+
+          if (!fldInfo.nullable && fldInfo.fullyInit) {
+            ValDef(origVd.id.freshen, origVd.tpe, origVd.flags)
+          } else {
+            val tpe2 = {
+              if (!fldInfo.fullyInit) {
+                val ClassType(fldCtId, fldTps) = getAsClassType(origVd.tpe)
+                assert(init2uninit.contains(fldCtId))
+                ClassType(init2uninit(fldCtId), fldTps)
+              } else origVd.tpe
+            }
+            val tpe3 = {
+              if (fldInfo.nullable) {
+                ClassType(optionMutDefs.option.id, Seq(tpe2))
+              } else {
+                tpe2
+              }
+            }
+
+            ValDef(origVd.id.freshen, tpe3, origVd.flags)
+          }
+        }
+      } else {
+        // Abstract classes do not have fields
+        assert(origCD.fields.isEmpty)
+        Seq.empty
+      }
+    }
+    val isInitIds = generateFnIdentifier("isInit")
+    val toInitIds = generateFnIdentifier("toInit")
+    val fromInitIds = generateFnIdentifier("fromInit")
+    val newFieldsMap: Map[Identifier, Seq[ValDef]] = needUninit.map(cls => cls -> createNewFields(cls)).toMap
+
     def createUninitClass(cls: Identifier): UninitClassDef = {
+      val parent = topParentOfMap(cls)
       val info = classesConsInfo(cls)
       val origCD = symbols.getClass(cls)
+      assert(origCD.typeArgs.isEmpty)
 
-      val typeArgs = freshenTypeParams(origCD.typeArgs)
-      val tpSubst = (origCD.typeArgs zip typeArgs).toMap
-
-      val newFields = origCD.fields.map { origVd =>
-        val fldInfo = info.fields(origVd.id)
-        val insted = typeOps.instantiateType(origVd.tpe, tpSubst)
-
-        if (!fldInfo.nullable && fldInfo.fullyInit) {
-          ValDef(origVd.id.freshen, insted, origVd.flags)
-        } else {
-          val tpe2 = {
-            if (!fldInfo.fullyInit) {
-              val ClassType(fldCtId, fldTps) = getAsClassType(insted)
-              assert(init2uninit.contains(fldCtId))
-              ClassType(init2uninit(fldCtId), fldTps)
-            } else insted
-          }
-          val tpe3 = {
-            if (fldInfo.nullable) {
-              ClassType(optionMutDefs.option.id, Seq(tpe2))
-            } else {
-              tpe2
-            }
-          }
-
-          ValDef(origVd.id.freshen, tpe3, origVd.flags)
-        }
-      }
-
+      val newFields = newFieldsMap(cls)
+      val newParents = origCD.parents.map(ct => ClassType(init2uninit(ct.id), Seq.empty))
       val newCd = new ClassDef(
         init2uninit(cls),
-        typeArgs.map(TypeParameterDef(_)),
-        origCD.parents.map { ct =>
-          val ctUninit = ClassType(init2uninit.getOrElse(ct.id, ct.id), ct.tps)
-          typeOps.instantiateType(ctUninit, tpSubst).asInstanceOf[ClassType]
-        },
+        Seq.empty,
+        newParents,
         newFields,
-        origCD.flags
+        (origCD.flags :+ IsMutable).distinct
       )
+      if (isTopParent(cls)) {
+        val isInitFd = mkIsInitFd(cls)
+        val toInitFd = mkToInitFd(cls)
+        val fromInitFd = mkFromInitFd(cls)
+        UninitClassDef.Parent(newCd, isInit = isInitFd, toInitFd = toInitFd, fromInitFd = fromInitFd, hasDescendants = !isLeaf(cls))
+      } else {
+        UninitClassDef.LeafOrIntermediate(newCd, isInitId_ = isInitIds(cls), toInitId_ = toInitIds(cls), fromInitId_ = fromInitIds(cls))
+      }
+    }
 
-      val toInitFd = new FunDef(
-        ast.SymbolIdentifier("toInit"),
+    def mkIsInitFd(origCls: Identifier): FunDef = {
+      val uninitCls = init2uninit(origCls)
+
+      def bodyBuilder(recv: Expr, origCls: Identifier): Expr = {
+        val info = classesConsInfo(origCls)
+        val origField = classes(origCls).fields
+        val uninitCls = init2uninit(origCls)
+
+        val conjs = info.fields
+          .filter { case (_, info) => info.nullable || !info.fullyInit }
+          .flatMap { case (origFld, info) =>
+            val fldIx = origField.indexWhere(_.id == origFld)
+            val newFld = newFieldsMap(origCls)(fldIx)
+            val sel = ClassSelector(recv, newFld.id)
+            val isDefined = {
+              if (info.nullable) Seq(MethodInvocation(sel, optionMutDefs.isDefined.id, Seq.empty, Seq.empty))
+              else Seq.empty[Expr]
+            }
+            val fldGet = {
+              if (info.nullable) MethodInvocation(sel, optionMutDefs.get.id, Seq.empty, Seq.empty)
+              else sel
+            }
+            val isInit = {
+              if (!info.fullyInit) {
+                val fldClsUninit = {
+                  val ClassType(fldClsId, tps) = getAsClassType(newFld.tpe)
+                  if (info.nullable) {
+                    assert(fldClsId == optionMutDefs.option.id && tps.size == 1)
+                    val ClassType(fldClsId2, tps2) = getAsClassType(tps.head)
+                    assert(tps2.isEmpty)
+                    fldClsId2
+                  } else {
+                    assert(tps.isEmpty)
+                    fldClsId
+                  }
+                }
+                val fldClsInit = uninit2init(fldClsUninit)
+                Seq(MethodInvocation(fldGet, isInitIds(fldClsInit), Seq.empty, Seq.empty))
+              } else Seq.empty[Expr]
+            }
+            isDefined ++ isInit
+          }.toSeq
+        andJoin(conjs)
+      }
+
+      val body = {
+        val thiss = This(ClassType(uninitCls, Seq.empty))
+        if (isLeaf(origCls)) bodyBuilder(thiss, origCls)
+        else {
+          val allLeafs = descendantsMap(origCls).filter(isLeaf)
+          val cases = allLeafs.toSeq.map { leafCls =>
+            val ct = ClassType(init2uninit(leafCls), Seq.empty)
+            val binder = ValDef(FreshIdentifier(leafCls.name.take(1).toLowerCase), ct)
+            val nbFields = symbols.classes(leafCls).fields.size
+            val pat = ClassPattern(Some(binder), ct, Seq.fill(nbFields)(WildcardPattern(None)))
+            val rhs = bodyBuilder(binder.toVariable, leafCls)
+            MatchCase(pat, None, rhs)
+          }
+          MatchExpr(thiss, cases)
+        }
+      }
+      new FunDef(
+        isInitIds(origCls),
         Seq.empty,
         Seq.empty,
-        ClassType(origCD.id, typeArgs),
-        NoTree(ClassType(origCD.id, typeArgs)), // TODO
-        Seq(IsMethodOf(newCd.id))
+        BooleanType(),
+        body,
+        Seq(IsMethodOf(uninitCls), Final, Derived(None), Extern) // TODO: Rm extern
       )
-
-      val fromInitTparams = freshenTypeParams(origCD.typeArgs)
-      val fromInitVd = ValDef(FreshIdentifier("init"), ClassType(origCD.id, fromInitTparams))
-      val fromInitFd = new FunDef(
-        ast.SymbolIdentifier("fromInit"),
-        fromInitTparams.map(TypeParameterDef(_)),
+    }
+    def mkToInitFd(origCls: Identifier): FunDef = {
+      val uninitCls = init2uninit(origCls)
+      new FunDef(
+        toInitIds(origCls),
+        Seq.empty,
+        Seq.empty,
+        ClassType(origCls, Seq.empty),
+        NoTree(ClassType(origCls, Seq.empty)), // TODO
+        Seq(IsMethodOf(uninitCls), Final, Derived(None), Extern) // TODO: Rm extern
+      )
+    }
+    def mkFromInitFd(origCls: Identifier): FunDef = {
+      val uninitCls = init2uninit(origCls)
+      val fromInitVd = ValDef(FreshIdentifier("init"), ClassType(origCls, Seq.empty))
+      new FunDef(
+        fromInitIds(origCls),
+        Seq.empty,
         Seq(fromInitVd),
-        ClassType(newCd.id, fromInitTparams),
-        NoTree(ClassType(newCd.id, fromInitTparams)), // TODO
-        Seq.empty
+        ClassType(uninitCls, Seq.empty),
+        NoTree(ClassType(uninitCls, Seq.empty)), // TODO
+        Seq(Derived(None))
       )
-
-      UninitClassDef(newCd, toInitFd, fromInitFd)
     }
 
     val init2cd = init2uninit.keySet.map(id => id -> createUninitClass(id)).toMap
-    val uninit2init = init2uninit.map { case (init, uninit) => (uninit, init) }
     UninitClassDefs(init2cd, uninit2init)
   }
 
@@ -428,6 +608,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       assert(fields.contains(fld))
       ClassConsInfo(fields.updatedWith(fld)(_.map(_.copy(fullyInit = false))))
     }
+    def needsUninit: Boolean = fields.values.exists(fi => !fi.fullyInit || fi.nullable)
   }
 
   case class FieldInfo(nullable: Boolean, fullyInit: Boolean)
@@ -668,12 +849,14 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     case other => sys.error(s"Expected to have a class type, but got $other")
   }
 
-  case class OptionMutDefs(option: ClassDef, some: ClassDef, none: ClassDef, get: FunDef) {
+  case class OptionMutDefs(option: ClassDef, some: ClassDef, none: ClassDef, isDefined: FunDef, get: FunDef) {
     def allNewClasses: Seq[ClassDef] = Seq(option, some, none)
-    def allNewFunctions: Seq[FunDef] = Seq(get)
+    def allNewFunctions: Seq[FunDef] = Seq(isDefined, get)
   }
 
   private def mkOptionMutDefs(): OptionMutDefs = {
+    import t.dsl._
+
     val Seq(option, some, none) =
       Seq("OptionMut", "SomeMut", "NoneMut").map(name => ast.SymbolIdentifier("stainless.internal." + name))
     val value = FreshIdentifier("value")
@@ -703,15 +886,36 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       Seq.empty,
       Seq(IsMutable)
     )
-    val getFd = new FunDef(
-      ast.SymbolIdentifier("stainless.internal.Option.get"),
-      Seq.empty,
-      Seq.empty,
-      optTp,
-      NoTree(optTp), // TODO
-      Seq(IsMethodOf(option), Final, Extern) // TODO: Rm Extern
-    )
-    OptionMutDefs(optionCD, someCD, noneCD, getFd)
+
+    // TODO: Dire pk optionCD.typeArgs
+    val optCT = ClassType(optionCD.id, optionCD.typeArgs)
+    val someCT = ClassType(someCD.id, optionCD.typeArgs)
+    val noneCT = ClassType(noneCD.id, optionCD.typeArgs)
+    val thiss = This(ClassType(optionCD.id, optionCD.typeArgs))
+    val isDefinedId = ast.SymbolIdentifier("stainless.internal.OptionMut.isDefined")
+    val isDefinedFd = mkFunDef(isDefinedId, IsMethodOf(option), Final, Derived(None))() {
+      case Seq() => (Seq.empty, BooleanType(), {
+        case Seq() => thiss match_ {
+          case_(KP2(someCT)(unused))(_ => BooleanLiteral(true))
+          case_(KP2(noneCT)())(_ => BooleanLiteral(false))
+        }
+      })
+    }
+    val getId = ast.SymbolIdentifier("stainless.internal.OptionMut.get")
+    val getFd = mkFunDef(getId, IsMethodOf(option), Final, Derived(None))() {
+      case Seq() => (Seq.empty, optTp, {
+        case Seq() =>
+          Require(
+            MethodInvocation(thiss, isDefinedId, Seq.empty, Seq.empty),
+            thiss match_ {
+              case_(KP2(someCT)("v" :: optTp)) {
+                case Seq(v) => v.toVariable
+              }
+            }
+          )
+      })
+    }
+    OptionMutDefs(optionCD, someCD, noneCD, isDefinedFd, getFd)
   }
 }
 

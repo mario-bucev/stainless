@@ -8,6 +8,11 @@ import scala.collection.mutable.{Map => MutableMap}
 
 trait Trees extends innerfuns.Trees with Definitions { self =>
 
+  override val dsl: DSL {val trees: self.type} = {
+    class DSLImpl(override val trees: self.type) extends DSL
+    new DSLImpl(this)
+  }
+
   /* ========================================
    *              EXPRESSIONS
    * ======================================== */

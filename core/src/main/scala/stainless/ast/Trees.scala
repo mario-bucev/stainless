@@ -35,5 +35,10 @@ trait Trees
     new ExprOpsImpl(self)
   }
 
+  override val dsl: DSL {val trees: self.type} = {
+    class DSLImpl(override val trees: self.type) extends DSL
+    new DSLImpl(this)
+  }
+
   val printer: Printer { val trees: self.type }
 }
