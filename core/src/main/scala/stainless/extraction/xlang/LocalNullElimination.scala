@@ -33,18 +33,18 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 //      }
     }
 
-    println(uninitCC.classesConsInfo)
+    // println(uninitCC.classesConsInfo)
 
     val optMutDefs = mkOptionMutDefs()
 
-    println("---------------")
+    // println("---------------")
 
     val uninitClasses = createUninitClasses(symbols, optMutDefs, uninitCC.classesConsInfo)
+    /*
     println(uninitClasses.init2cd.mkString("\n"))
-
     println("===========================================")
     println("===========================================")
-
+    */
     TransformerContext(symbols, optMutDefs, uninitCC.classesConsInfo, uninitClasses)
   }
 
@@ -586,7 +586,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         val uninitCls = init2uninit(origCls)
         val args = origFields.zipWithIndex.map { case (origField, fldIx) =>
           val newFld = newFieldsMap(origCls)(fldIx)
-          val sel = ClassSelector(recv, newFld.id)
+          val sel = FreshCopy(ClassSelector(recv, newFld.id)) // TODO: !!!! NEED CHECKS TO ENSURE NO MUTATION
           val info = infos.fields(origField.id)
           val get = {
             if (info.nullable) MethodInvocation(sel, optionMutDefs.get.id, Seq.empty, Seq.empty)
@@ -626,7 +626,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         val uninitCls = init2uninit(origCls)
         val args = origFields.zipWithIndex.map { case (origField, fldIx) =>
           val newFld = newFieldsMap(origCls)(fldIx)
-          val sel = ClassSelector(recv, origField.id)
+          val sel = FreshCopy(ClassSelector(recv, origField.id)) // TODO: !!!! NEED CHECKS TO ENSURE NO MUTATION
           val info = infos.fields(origField.id)
           val fromInit = {
             if (!info.fullyInit) {
