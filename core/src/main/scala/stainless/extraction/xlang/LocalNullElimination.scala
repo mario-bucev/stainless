@@ -574,7 +574,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         Seq.empty,
         BooleanType(),
         body,
-        Seq(IsMethodOf(uninitCls), Final, Derived(None))
+        Seq(IsMethodOf(uninitCls), Final, Derived(None), IsPure)
       )
     }
     def mkToInitFd(origCls: Identifier): FunDef = {
@@ -613,7 +613,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         Seq.empty,
         ClassType(origCls, Seq.empty),
         bodyWithReq,
-        Seq(IsMethodOf(uninitCls), Final, Derived(None))
+        Seq(IsMethodOf(uninitCls), Final, Derived(None), IsPure)
       )
     }
     def mkFromInitFd(origCls: Identifier): FunDef = {
@@ -655,7 +655,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         Seq(fromInitVd),
         ClassType(uninitCls, Seq.empty),
         body,
-        Seq(Derived(None))
+        Seq(Derived(None), IsPure)
       )
     }
 

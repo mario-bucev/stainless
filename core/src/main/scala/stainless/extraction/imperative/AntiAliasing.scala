@@ -345,7 +345,9 @@ class AntiAliasing(override val s: Trees)(override val t: s.type)(using override
 
               case _ =>
                 result ++= getAllTargetsDealiased(e, env)
-                  .getOrElse(throw MalformedStainlessCode(e, s"Possible aliasing within ${e.asString} (could not compute precise targets)"))
+                  .getOrElse {
+                    throw MalformedStainlessCode(e, s"Possible aliasing within ${e.asString} (could not compute precise targets)")
+                  }
             }
           }
 
