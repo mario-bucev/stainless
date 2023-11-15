@@ -92,20 +92,28 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     def adaptExpression(e: Expr, eOrigTpe: Type, eNewTpe: Type, eFullyInit: Boolean, eNullable: Boolean,
                         resFullyInit: Boolean, resNullable: Boolean): Expr = {
       if (resFullyInit == !eFullyInit) {
-        val ClassType(clsId, clsTps) = getAsClassType(eOrigTpe)
-        assert(clsTps.isEmpty)
-        val uninitCd = tc.uninitClasses.init2cd(clsId)
         val e1 = {
           if (eNullable) get(e).copiedFrom(e)
           else e
         }
-        val (e2, tpe2) = {
-          // TODO: May need cast (non-sealed)
-          if (!resFullyInit) {
-            (FunctionInvocation(uninitCd.fromInitId, clsTps, Seq(e1)).copiedFrom(e), ClassType(uninitCd.cd.id, clsTps))
-          } else {
-            (MethodInvocation(e1, uninitCd.toInitId, Seq.empty, Seq.empty).copiedFrom(e), ClassType(clsId, clsTps))
-          }
+        val (e2, tpe2) = eOrigTpe match {
+          case ClassType(clsId, clsTps) =>
+            assert(clsTps.isEmpty)
+            val uninitCd = tc.uninitClasses.init2cd(clsId)
+            if (!resFullyInit) {
+              (FunctionInvocation(uninitCd.fromInitId, Seq.empty, Seq(e1)).copiedFrom(e), ClassType(uninitCd.cd.id, Seq.empty))
+            } else {
+              (MethodInvocation(e1, uninitCd.toInitId, Seq.empty, Seq.empty).copiedFrom(e), ClassType(clsId, Seq.empty))
+            }
+          case ArrayType(ClassType(clsId, clsTps)) =>
+            assert(clsTps.isEmpty)
+            val uninitCd = tc.uninitClasses.init2cd(clsId)
+            if (!resFullyInit) {
+              (FunctionInvocation(uninitCd.fromInitArrId, Seq.empty, Seq(e1)).copiedFrom(e), ArrayType(ClassType(uninitCd.cd.id, Seq.empty)))
+            } else {
+              (FunctionInvocation(uninitCd.toInitArrId, Seq.empty, Seq(e1)).copiedFrom(e), ArrayType(ClassType(clsId, Seq.empty)))
+            }
+          case _ => sys.error(s"Expected a class type or an array of class type but got $eOrigTpe")
         }
         if (resNullable) some(e2, tpe2) else e2
       } else {
@@ -114,6 +122,13 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           else some(e, eNewTpe).copiedFrom(e)
         } else e
       }
+    }
+
+    def mustUseUninit(args: Seq[Expr], env: Env): Boolean = {
+      val argsInfo = args.map(exprInfoOf(_, env.bdgs.view.mapValues(_.info).toMap))
+      val argsFullyInit = argsInfo.forall(_.fullyInit)
+      val argsNullable = argsInfo.exists(_.nullable)
+      !argsFullyInit || argsNullable
     }
 
     override def transform(e: Expr, env: Env): Expr = {
@@ -138,18 +153,36 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
               adaptExpression(v, v.tpe, v.tpe, true, false, resFullyInit, resNullable)
           }
 
-        case Let(vd, e, body) => letCase(vd, e, body, env)(Let.apply)
-        case LetVar(vd, e, body) => letCase(vd, e, body, env)(LetVar.apply)
+        case Let(vd, ee, body) => letCase(vd, ee, body, env)(Let.apply).copiedFrom(e)
+        case LetVar(vd, ee, body) => letCase(vd, ee, body, env)(LetVar.apply).copiedFrom(e)
+
+        case FiniteArray(elems, base) =>
+          val (elemsFullyInit, elemsNullable, newBase) = base match {
+            case ct: ClassType =>
+              tc.uninitClasses.init2cd.get(ct.id) match {
+                case Some(uninitCd) =>
+                  val elemsInfo = elems.map(exprInfoOf(_, env.bdgs.view.mapValues(_.info).toMap))
+                  val elemsFullyInit = elemsInfo.forall(_.fullyInit)
+                  val elemsNullable = elemsInfo.exists(_.nullable)
+                  (elemsFullyInit, elemsNullable, ClassType(uninitCd.cd.id, Seq.empty))
+                case None => (true, false, base)
+              }
+            case _ => (true, false, base)
+          }
+          val recEnv = Env(CtxKind.ConstructionOrBinding(fullyInit = elemsFullyInit, nullable = elemsNullable, expectedType = newBase), env.bdgs)
+          val recElems = elems.map(transform(_, recEnv))
+          val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
+          adaptExpression(FiniteArray(recElems, newBase), eOrigTpe = ArrayType(base), eNewTpe = ArrayType(newBase), elemsFullyInit, elemsNullable, resFullyInit, resNullable)
+
+        case ArrayUpdate(arr, ix, value) =>
+          ???
 
         case ClassConstructor(ct, args) =>
           val fieldsOrig = tc.symbols.getClass(ct.id).fields
-          val (argsEnv, mustUseUninit) = tc.uninitClasses.init2cd.get(ct.id) match {
+          val (argsEnv, useUninit) = tc.uninitClasses.init2cd.get(ct.id) match {
             case Some(uninitCd) =>
               assert(ct.tps.isEmpty)
-              val argsInfo = args.map(exprInfoOf(_, env.bdgs.view.mapValues(_.info).toMap))
-              val argsFullyInit = argsInfo.forall(_.fullyInit)
-              val argsNullable = argsInfo.exists(_.nullable)
-              val mustUseUninit = !argsFullyInit || argsNullable
+              val useUninit = mustUseUninit(args, env)
               val fieldsInfo = tc.classesConsInfo(ct.id).fields
 
               val argsEnv = fieldsOrig.zipWithIndex.map { case (field, fieldIx) =>
@@ -159,28 +192,28 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
                   // If all argument are fully initialized, then so is this one
                   // However, if there is one uninit argument, this argument is uninit as well if
                   // its corresponding field is uninit, otherwise we proceed to a fully initialized construction
-                  !mustUseUninit || fieldInfo.fullyInit,
+                  !useUninit || fieldInfo.fullyInit,
                   // Ditto for nullable
-                  mustUseUninit && fieldInfo.nullable,
+                  useUninit && fieldInfo.nullable,
                   uninitCd.cd.fields(fieldIx).tpe
                 )
                 Env(ctxKind, env.bdgs)
               }
-              (argsEnv, mustUseUninit)
+              (argsEnv, useUninit)
             case None =>
               val argsEnv = fieldsOrig.map(field => Env(CtxKind.ConstructionOrBinding(fullyInit = true, nullable = false, expectedType = field.tpe), env.bdgs))
               (argsEnv, false)
           }
           val recArgs = args.zip(argsEnv).map(transform(_, _))
           val (e1, tpe1) = {
-            if (mustUseUninit) {
+            if (useUninit) {
               assert(ct.tps.isEmpty)
               val newCt = ClassType(tc.uninitClasses.init2cd(ct.id).cd.id, Seq.empty)
               (ClassConstructor(newCt, recArgs), newCt)
             } else (ClassConstructor(ct, recArgs), ct)
           }
           val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
-          adaptExpression(e1, eOrigTpe = ct, eNewTpe = tpe1, !mustUseUninit, false, resFullyInit, resNullable)
+          adaptExpression(e1, eOrigTpe = ct, eNewTpe = tpe1, !useUninit, false, resFullyInit, resNullable)
 
         case ClassSelector(recv, selector) =>
           val recvInfo = exprInfoOf(recv, env.bdgs.view.mapValues(_.info).toMap)
@@ -254,6 +287,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             MatchCase(cse.pattern, guardRec, rhsRec).copiedFrom(cse)
           }
           MatchExpr(scrutRec, casesRec).copiedFrom(e)
+
         case LetRec(fds, body) =>
           val fdsRec = fds.map(fd => fd.copy(fullBody = transform(fd.fullBody, env.withPureCtx)))
           val bodyRec = transform(body, env)
@@ -288,11 +322,12 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           val eTpe = e.getType(using tc.symbols)
           val esRec = es.map(transform(_, env.withPureCtx))
           val e2 = recons(esRec).copiedFrom(e)
+          // TODO: Use adaptExpression?
           val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
           val (e3, e3Tpe) = {
             if (resFullyInit) (e2, eTpe)
             else {
-              val ClassType(clsId, clsTps) = getAsClassType(eTpe)
+              val ClassType(clsId, clsTps) = getAsClassType(eTpe) // TODO: Nope
               assert(clsTps.isEmpty)
               val uninitCd = tc.uninitClasses.init2cd(clsId)
               // TODO: May need cast (non-sealed)
@@ -311,7 +346,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       val tpe2 = {
         if (fullyInit) vtpe
         else {
-          val ClassType(clsId, clsTps) = getAsClassType(vtpe)
+          val ClassType(clsId, clsTps) = getAsClassType(vtpe) // TODO: Non, array
           assert(clsTps.isEmpty)
           ClassType(tc.uninitClasses.init2cd(clsId).cd.id, clsTps)
         }
@@ -333,13 +368,13 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
                              uninit2init: Map[Identifier, Identifier]) {
     def allNewClasses: Seq[ClassDef] = init2cd.values.map(_.cd).toSeq
     def allNewFunctions: Seq[FunDef] = init2cd.values.flatMap {
-      case p: UninitClassDef.Parent => Seq(p.isInit, p.toInitFd, p.fromInitFd)
+      case p: UninitClassDef.Parent => Seq(p.isInit, p.toInitFd, p.fromInitFd, p.isInitArr, p.toInitArrFd, p.fromInitArrFd)
       case _: UninitClassDef.LeafOrIntermediate => Seq.empty
     }.toSeq
   }
   enum UninitClassDef {
-    case Parent(cd_ : ClassDef, isInit: FunDef, toInitFd: FunDef, fromInitFd: FunDef, hasDescendants: Boolean)
-    case LeafOrIntermediate(cd_ : ClassDef, isInitId_ : Identifier, toInitId_ : Identifier, fromInitId_ : Identifier)
+    case Parent(cd_ : ClassDef, isInit: FunDef, toInitFd: FunDef, fromInitFd: FunDef, isInitArr: FunDef, toInitArrFd: FunDef, fromInitArrFd: FunDef, hasDescendants: Boolean)
+    case LeafOrIntermediate(cd_ : ClassDef, isInitId_ : Identifier, toInitId_ : Identifier, fromInitId_ : Identifier, isInitArrId_ : Identifier, toInitArrId_ : Identifier, fromInitArrId_ : Identifier)
 
     def cd: ClassDef = this match {
       case p: Parent => p.cd_
@@ -356,6 +391,18 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     def fromInitId: Identifier = this match {
       case p: Parent => p.fromInitFd.id
       case li: LeafOrIntermediate => li.fromInitId_
+    }
+    def isInitArrId: Identifier = this match {
+      case p: Parent => p.isInitArr.id
+      case li: LeafOrIntermediate => li.isInitArrId_
+    }
+    def fromInitArrId: Identifier = this match {
+      case p: Parent => p.fromInitArrFd.id
+      case li: LeafOrIntermediate => li.fromInitArrId_
+    }
+    def toInitArrId: Identifier = this match {
+      case p: Parent => p.toInitArrFd.id
+      case li: LeafOrIntermediate => li.toInitArrId_
     }
   }
 //  case class UninitClassDef(cd: ClassDef, toInit: FunDef, fromInit: FunDef)
@@ -449,7 +496,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           } else {
             val tpe2 = {
               if (!fldInfo.fullyInit) {
-                val ClassType(fldCtId, fldTps) = getAsClassType(origVd.tpe)
+                val ClassType(fldCtId, fldTps) = getAsClassType(origVd.tpe) // TODO: Non, array
                 assert(init2uninit.contains(fldCtId))
                 ClassType(init2uninit(fldCtId), fldTps)
               } else origVd.tpe
@@ -474,6 +521,9 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     val isInitIds = generateFnIdentifier("isInit")
     val toInitIds = generateFnIdentifier("toInit")
     val fromInitIds = generateFnIdentifier("fromInit")
+    val isInitArrIds = generateFnIdentifier("isInitArr")
+    val toInitArrIds = generateFnIdentifier("toInitArr")
+    val fromInitArrIds = generateFnIdentifier("fromInitArr")
     val newFieldsMap: Map[Identifier, Seq[ValDef]] = needUninit.map(cls => cls -> createNewFields(cls)).toMap
 
     def createUninitClass(cls: Identifier): UninitClassDef = {
@@ -495,17 +545,25 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         val isInitFd = mkIsInitFd(cls)
         val toInitFd = mkToInitFd(cls)
         val fromInitFd = mkFromInitFd(cls)
-        UninitClassDef.Parent(newCd, isInit = isInitFd, toInitFd = toInitFd, fromInitFd = fromInitFd, hasDescendants = !isLeaf(cls))
+        val isInitArrFd = mkIsInitArrFd(cls)
+        val toInitArrFd = mkToInitArrFd(cls)
+        val fromInitArrFd = mkFromInitArrFd(cls)
+        UninitClassDef.Parent(newCd,
+          isInit = isInitFd, toInitFd = toInitFd, fromInitFd = fromInitFd,
+          isInitArr = isInitArrFd, toInitArrFd = toInitArrFd, fromInitArrFd = fromInitArrFd,
+          hasDescendants = !isLeaf(cls))
       } else {
-        UninitClassDef.LeafOrIntermediate(newCd, isInitId_ = isInitIds(cls), toInitId_ = toInitIds(cls), fromInitId_ = fromInitIds(cls))
+        UninitClassDef.LeafOrIntermediate(newCd,
+          isInitId_ = isInitIds(cls), toInitId_ = toInitIds(cls), fromInitId_ = fromInitIds(cls),
+          isInitArrId_ = isInitArrIds(cls), toInitArrId_ = toInitArrIds(cls), fromInitArrId_ = fromInitArrIds(cls))
       }
     }
 
     def getUnderlyingUninitIdOf(info: FieldInfo, newFld: ValDef): Identifier = {
-      val ClassType(fldClsId, tps) = getAsClassType(newFld.tpe)
+      val ClassType(fldClsId, tps) = getAsClassType(newFld.tpe) // TODO: Non, array
       if (info.nullable) {
         assert(fldClsId == optionMutDefs.option.id && tps.size == 1)
-        val ClassType(fldClsId2, tps2) = getAsClassType(tps.head)
+        val ClassType(fldClsId2, tps2) = getAsClassType(tps.head) // TODO: Non, array
         assert(tps2.isEmpty)
         fldClsId2
       } else {
@@ -577,6 +635,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         Seq(IsMethodOf(uninitCls), Final, Derived(None), IsPure)
       )
     }
+
     def mkToInitFd(origCls: Identifier): FunDef = {
       val uninitCls = init2uninit(origCls)
 
@@ -616,6 +675,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         Seq(IsMethodOf(uninitCls), Final, Derived(None), IsPure)
       )
     }
+
     def mkFromInitFd(origCls: Identifier): FunDef = {
       val uninitCls = init2uninit(origCls)
       val fromInitVd = ValDef(FreshIdentifier("init"), ClassType(origCls, Seq.empty))
@@ -637,7 +697,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             else sel
           }
           if (info.nullable) {
-            val ClassType(optId, tps) = getAsClassType(newFld.tpe)
+            val ClassType(optId, tps) = getAsClassType(newFld.tpe) // TODO: Non, array
             assert(optId == optionMutDefs.option.id && tps.size == 1)
             ClassConstructor(ClassType(optionMutDefs.some.id, tps), Seq(fromInit))
           }
@@ -655,6 +715,104 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         Seq(fromInitVd),
         ClassType(uninitCls, Seq.empty),
         body,
+        Seq(Derived(None), IsPure)
+      )
+    }
+
+    def mkIsInitArrFd(origCls: Identifier): FunDef = {
+      import t.dsl._
+      val fnId = isInitArrIds(origCls)
+      val uninitCls = init2uninit(origCls)
+      val arrVd = ValDef(FreshIdentifier("arr"), ArrayType(ClassType(uninitCls, Seq.empty)))
+      val fromVd = ValDef(FreshIdentifier("from"), Int32Type())
+      val untilVd = ValDef(FreshIdentifier("until"), Int32Type())
+      val arr = arrVd.toVariable
+      val from = fromVd.toVariable
+      val until = untilVd.toVariable
+      val body = {
+        Require(Int32Literal(0) <= from && from <= until && until <= ArrayLength(arr),
+          Decreases(from - until,
+            from === until || (MethodInvocation(ArraySelect(arr, from), isInitIds(origCls), Seq.empty, Seq.empty) &&
+              FunctionInvocation(fnId, Seq.empty, Seq(arr, from + Int32Literal(1), until)))
+          )
+        )
+      }
+      new FunDef(
+        fnId,
+        Seq.empty,
+        Seq(arrVd, fromVd, untilVd),
+        BooleanType(),
+        NoTree(BooleanType()), // TODO,
+        Seq(Derived(None), IsPure)
+      )
+    }
+
+    def mkToInitArrFd(origCls: Identifier): FunDef = {
+      import t.dsl._
+
+      val fnId = toInitArrIds(origCls)
+      val uninitCls = init2uninit(origCls)
+      val arrVd = ValDef(FreshIdentifier("arr"), ArrayType(ClassType(uninitCls, Seq.empty)))
+      val arr = arrVd.toVariable
+
+      val resArrVd = ValDef(FreshIdentifier("resArr"), ArrayType(ClassType(origCls, Seq.empty)))
+      val iVd = ValDef(FreshIdentifier("i"), Int32Type())
+      val resArr = resArrVd.toVariable
+      val i = iVd.toVariable
+
+      val recId = FreshIdentifier("rec")
+      val recTpe = FunctionType(Seq(resArr.tpe, i.tpe), resArr.tpe)
+      val recBody = {
+        // TODO: Require isInit, unfolded
+        Require(Int32Literal(0) <= i && i <= ArrayLength(arr) && ArrayLength(arr) === ArrayLength(resArr),
+          Decreases(ArrayLength(arr) - i,
+            if_(i < ArrayLength(arr)) {
+              Block(Seq(
+                ArrayUpdate(resArr, i, MethodInvocation(ArraySelect(arr, i), toInitIds(origCls), Seq.empty, Seq.empty))),
+                ApplyLetRec(recId, Seq.empty, recTpe, Seq.empty, Seq(resArr, i + Int32Literal(1)))
+              )
+            } else_ resArr
+          )
+        )
+      }
+      val body = {
+        val initArrayVd = ValDef(FreshIdentifier("initArray"), resArr.tpe)
+        val initArray = Choose(initArrayVd, ArrayLength(initArrayVd.toVariable) === ArrayLength(arr))
+        Require(FunctionInvocation(isInitArrIds(origCls), Seq.empty, Seq(arr)),
+          LetRec(
+            Seq(LocalFunDef(recId, Seq.empty, Seq(resArrVd, iVd), resArr.tpe, recBody, Seq.empty)),
+            ApplyLetRec(recId, Seq.empty, recTpe, Seq.empty, Seq(Int32Literal(0), initArray))
+          )
+        )
+      }
+      new FunDef(
+        fnId,
+        Seq.empty,
+        Seq(arrVd),
+        resArr.tpe,
+        NoTree(resArr.tpe), // TODO
+        Seq(Derived(None), IsPure)
+      )
+    }
+
+    def mkFromInitArrFd(origCls: Identifier): FunDef = {
+      import t.dsl._
+      val fnId = fromInitArrIds(origCls)
+      val arrVd = ValDef(FreshIdentifier("arr"), ArrayType(ClassType(origCls, Seq.empty)))
+      val arr = arrVd.toVariable
+
+      val uninitCls = init2uninit(origCls)
+      val resArrVd = ValDef(FreshIdentifier("resArr"), ArrayType(ClassType(uninitCls, Seq.empty)))
+      val iVd = ValDef(FreshIdentifier("i"), Int32Type())
+      val resArr = resArrVd.toVariable
+      val i = iVd.toVariable
+
+      new FunDef(
+        fnId,
+        Seq.empty,
+        Seq(arrVd),
+        resArr.tpe,
+        NoTree(resArr.tpe), // TODO
         Seq(Derived(None), IsPure)
       )
     }
@@ -697,7 +855,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     }
 
     override def traverse(e: Expr, ctx: Env): Unit = {
-      println(s"$e -> $ctx")
+//      println(s"$e -> $ctx")
       e match {
         case NullLit() =>
           val last = ctx.fieldsSel.lastFields
@@ -862,7 +1020,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       val nullable = rec.exists(_.nullable)
       ExprInfo(fieldsSel, fullyInit, nullable)
     }
-
+    // TODO: Array
+    // TODO: ArrayUpdated?
     def go(e: Expr, curr: FieldsSel, bdgs: Map[Variable, ExprInfo]): ExprInfo = e match {
       case NullLit() =>
         assert(curr == FieldsSel.Leaf())
@@ -874,7 +1033,15 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         assert(curr == FieldsSel.Leaf())
         val rec = args.map(go(_, FieldsSel.Leaf(), bdgs))
         val fullyInit = rec.forall(ei => ei.fullyInit && !ei.nullable)
-        ExprInfo(FieldsSel.Leaf(), fullyInit, false) // Cannot be nullable since we are constructing a class
+        ExprInfo(FieldsSel.Leaf(), fullyInit, false) // Not nullable since we are constructing a class
+      case FiniteArray(elems, _) =>
+        val elemsRec = elems.map(go(_, FieldsSel.Leaf(), bdgs))
+        val fullyInit = elemsRec.forall(_.fullyInit)
+        ExprInfo(FieldsSel.Leaf(), fullyInit, false) // Not nullable because we are constructing an array
+      case LargeArray(elems, default, _, _) =>
+        assert(elems.isEmpty, "What, this elems is actually populated with something???")
+        val defaultRec = go(default, FieldsSel.Leaf(), bdgs)
+        ExprInfo(FieldsSel.Leaf(), defaultRec.fullyInit, false) // Not nullable because we are constructing an array
       case ClassSelector(recv, selector) =>
         val recRecv = exprInfoOf(recv, bdgs)
         val resFieldsSel = selector :: recRecv.fieldsSel
