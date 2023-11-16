@@ -105,6 +105,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             } else {
               (MethodInvocation(e1, uninitCd.toInitId, Seq.empty, Seq.empty).copiedFrom(e), ClassType(clsId, Seq.empty))
             }
+          // TODO: What about array of array of uninit or array of something containing uninit???
           case ArrayType(ClassType(clsId, clsTps)) =>
             assert(clsTps.isEmpty)
             val uninitCd = tc.uninitClasses.init2cd(clsId)
@@ -176,6 +177,28 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
         case ArrayUpdate(arr, ix, value) =>
           ???
+
+        case ArrayUpdated(arr, ix, value) =>
+          ???
+
+        case ArraySelect(arr, ix) =>
+          val arrInfo = exprInfoOf(arr, env.bdgs.view.mapValues(_.info).toMap)
+          val arrRec = transform(arr, Env(CtxKind.FieldSelection(arrInfo.fullyInit), env.bdgs))
+          val ixRec = transform(ix, env.withPureCtx)
+          val origTpe = e.getType(using tc.symbols)
+          val tpe2 = {
+            if (arrInfo.fullyInit) origTpe
+            else {
+              // TODO: Array of something else than Uninit
+              val ClassType(clsId, clsTps) = getAsClassType(origTpe)
+              assert(clsTps.isEmpty)
+              val uninitCd = tc.uninitClasses.init2cd(clsId).cd
+              ClassType(uninitCd.id, Seq.empty)
+            }
+          }
+          val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
+          // TODO: No, there is a difference between being nullable and having the element being nullable!!!!
+          adaptExpression(ArraySelect(arrRec, ixRec), eOrigTpe = origTpe, eNewTpe = tpe2, eFullyInit = arrInfo.fullyInit, eNullable = arrInfo.fullyInit, resFullyInit, resNullable)
 
         case ClassConstructor(ct, args) =>
           val fieldsOrig = tc.symbols.getClass(ct.id).fields
@@ -345,10 +368,14 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     def adaptVariableType(vtpe: Type, fullyInit: Boolean, nullable: Boolean): Type = {
       val tpe2 = {
         if (fullyInit) vtpe
-        else {
-          val ClassType(clsId, clsTps) = getAsClassType(vtpe) // TODO: Non, array
-          assert(clsTps.isEmpty)
-          ClassType(tc.uninitClasses.init2cd(clsId).cd.id, clsTps)
+        else vtpe match {
+          case ClassType(clsId, clsTps) =>
+            assert(clsTps.isEmpty)
+            ClassType(tc.uninitClasses.init2cd(clsId).cd.id, clsTps)
+          // TODO: What about array of array of uninit???
+          case ArrayType(ClassType(clsId, clsTps)) =>
+            assert(clsTps.isEmpty)
+            ArrayType(ClassType(tc.uninitClasses.init2cd(clsId).cd.id, clsTps))
         }
       }
       if (!nullable) tpe2
@@ -778,7 +805,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       val body = {
         val initArrayVd = ValDef(FreshIdentifier("initArray"), resArr.tpe)
         val initArray = Choose(initArrayVd, ArrayLength(initArrayVd.toVariable) === ArrayLength(arr))
-        Require(FunctionInvocation(isInitArrIds(origCls), Seq.empty, Seq(arr)),
+        Require(FunctionInvocation(isInitArrIds(origCls), Seq.empty, Seq(arr, Int32Literal(0), ArrayLength(arr))),
           LetRec(
             Seq(LocalFunDef(recId, Seq.empty, Seq(resArrVd, iVd), resArr.tpe, recBody, Seq.empty)),
             ApplyLetRec(recId, Seq.empty, recTpe, Seq.empty, Seq(Int32Literal(0), initArray))
@@ -969,6 +996,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     }
   }
 
+  // TODO: Also for array
   // Note: this goes from "bottom" to "top"
   private enum FieldsSel {
     case Field(fld: Identifier, tail: FieldsSel)
@@ -1042,11 +1070,14 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         assert(elems.isEmpty, "What, this elems is actually populated with something???")
         val defaultRec = go(default, FieldsSel.Leaf(), bdgs)
         ExprInfo(FieldsSel.Leaf(), defaultRec.fullyInit, false) // Not nullable because we are constructing an array
+
+      // TODO: ArraySelect
+
       case ClassSelector(recv, selector) =>
         val recRecv = exprInfoOf(recv, bdgs)
         val resFieldsSel = selector :: recRecv.fieldsSel
         // TODO: Quid utilisation pour eliminator?
-        ExprInfo(selector :: recRecv.fieldsSel, recRecv.fullyInit, recRecv.nullable)
+        ExprInfo(selector :: recRecv.fieldsSel, recRecv.fullyInit, recRecv.nullable) // TODO: recRecv nullable dépend aussi du field non???
       case Let(v, e, body) =>
         // TODO: curr?
         val eRec = exprInfoOf(e, bdgs)
