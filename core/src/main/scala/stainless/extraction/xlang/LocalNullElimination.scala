@@ -29,7 +29,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     val uninitCC = new UninitClassesCollector
     for ((_, fd) <- symbols.functions) {
 //      if (fd.id.name.contains("test")) {
-      uninitCC.traverse(fd.fullBody, uninitCC.Env(FieldsSel.Leaf(), Map.empty))
+      uninitCC.traverse(fd.fullBody, uninitCC.Env.init)
 //      }
     }
 
@@ -864,10 +864,16 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
   private class UninitClassesCollector(using symbols: Symbols) extends inox.transformers.Traverser {
     override val trees: s.type = s
-    case class Env(fieldsSel: FieldsSel, bdgs: Map[Variable, ExprInfo]) {
-      def resetFieldsSel: Env = Env(FieldsSel.Leaf(), bdgs)
-      def ::(fld: Identifier): Env = Env(fld :: fieldsSel, bdgs)
-      def +(kv: (Variable, ExprInfo)): Env = Env(fieldsSel, bdgs + kv)
+    case class Env(bSel: BranchingSelections,
+                   bdgsSels: Map[Variable, BranchingSelections],
+                   bdgsNullable: Map[Variable, NullableSelections]) {
+      def resetSelectionCtx: Env = copy(bSel = BranchingSelections.Leaf)
+      def ::(fld: Identifier): Env = copy(bSel = fld :: bSel)
+      def +(kv: (Variable, (BranchingSelections, NullableSelections))): Env =
+        Env(bSel, bdgsSels + (kv._1 -> kv._2._1), bdgsNullable + (kv._1 -> kv._2._2))
+    }
+    object Env {
+      def init: Env = Env(BranchingSelections.Leaf, Map.empty, Map.empty)
     }
 
     var classesConsInfo: Map[Identifier, ClassConsInfo] =
@@ -885,6 +891,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 //      println(s"$e -> $ctx")
       e match {
         case NullLit() =>
+          /*
           val last = ctx.fieldsSel.lastFields
           for (fld <- last) {
             val cls = fieldsOfClass(fld)
@@ -895,7 +902,9 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             val cls = fieldsOfClass(fld)
             classesConsInfo = classesConsInfo.updated(cls, classesConsInfo(cls).setUninit(fld))
           }
+          */
         case v: Variable =>
+          /*
           ctx.bdgs.get(v) match {
             case Some(ExprInfo(_, fullyInit, nullable)) =>
               if (!fullyInit || nullable) {
@@ -917,12 +926,13 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
               }
             case None => ()
           }
+          */
 
         case ClassConstructor(ct, args) =>
           if (ct.tps.nonEmpty) {
-            val allArgsInit = args.forall(exprInfoOf(_, ctx.bdgs).fullyInit)
-            if (!allArgsInit) {
-              throw MalformedStainlessCode(e, "Cannot have uninitialized fields for parametric classes")
+            val argsNullable = args.foldLeft(NullableSelections.empty)(_ ++ nullableSelections(_, ctx.bdgsNullable))
+            if (argsNullable.isNullable || argsNullable.isUninit) {
+              throw MalformedStainlessCode(e, "Cannot have uninitialized or nullable fields for parametric classes")
             }
           }
           val cd = symbols.getClass(ct.id)
@@ -932,66 +942,88 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           }
 
         case FieldAssignment(recv, selector, value) =>
-          val recvInfo = exprInfoOf(recv, ctx.bdgs)
-          val newFieldsSel = selector :: recvInfo.fieldsSel
-          val newCtx = Env(newFieldsSel, ctx.bdgs)
-          traverse(value, newCtx)
+          traverse(recv, ctx.resetSelectionCtx)
+          val recvSels = activeSelections(recv, ctx.bdgsSels)
+          traverse(value, selector :: ctx)
 
         case ClassSelector(recv, selector) =>
-          traverse(recv, ctx.resetFieldsSel)
+          traverse(recv, ctx.resetSelectionCtx)
+
+        // TODO: ArrayUpdateD ?
+        case FiniteArray(elems, _) =>
+          for (elem <- elems) {
+            traverse(elem, ctx.copy(bSel = Selection.Array :: ctx.bSel))
+          }
+
+        case LargeArray(elems, default, sze, _) =>
+          assert(elems.isEmpty, "What, this elems is actually populated with something???")
+          traverse(sze, ctx.resetSelectionCtx)
+          traverse(default, ctx.copy(bSel = Selection.Array :: ctx.bSel))
+
+        case ArraySelect(arr, ix) =>
+          traverse(arr, ctx.resetSelectionCtx)
+          traverse(ix, ctx.resetSelectionCtx)
+
+        case ArrayUpdate(arr, ix, value) =>
+          traverse(arr, ctx.resetSelectionCtx)
+          traverse(ix, ctx.resetSelectionCtx)
+          val arrSels = activeSelections(arr, ctx.bdgsSels)
+          traverse(value, ctx.copy(bSel = Selection.Array :: arrSels))
 
         case Let(vd, e, body) =>
-          val eInfo = exprInfoOf(e, ctx.bdgs)
-          traverse(e, ctx.resetFieldsSel)
-          traverse(body, ctx + (vd.toVariable -> eInfo))
+          val eSels = activeSelections(e, ctx.bdgsSels)
+          val eNullable = nullableSelections(e, ctx.bdgsNullable)
+          traverse(e, ctx.resetSelectionCtx)
+          traverse(body, ctx + (vd.toVariable -> (eSels, eNullable)))
 
         case LetVar(vd, e, body) =>
-          val eInfo = exprInfoOf(e, ctx.bdgs)
-          traverse(e, ctx.resetFieldsSel)
-          traverse(body, ctx + (vd.toVariable -> eInfo))
+          val eSels = activeSelections(e, ctx.bdgsSels)
+          val eNullable = nullableSelections(e, ctx.bdgsNullable)
+          traverse(e, ctx.resetSelectionCtx)
+          traverse(body, ctx + (vd.toVariable -> (eSels, eNullable)))
 
         case IfExpr(cond, thenn, elze) =>
-          traverse(cond, ctx.resetFieldsSel)
+          traverse(cond, ctx.resetSelectionCtx)
           traverse(thenn, ctx)
           traverse(elze, ctx)
 
         case MatchExpr(scrutinee, cases) =>
-          traverse(scrutinee, ctx.resetFieldsSel)
+          traverse(scrutinee, ctx.resetSelectionCtx)
           for (c <- cases) {
-            c.optGuard.foreach(traverse(_, ctx.resetFieldsSel))
+            c.optGuard.foreach(traverse(_, ctx.resetSelectionCtx))
             traverse(c.rhs, ctx)
           }
 
         case Block(exprs, last) =>
-          exprs.foreach(traverse(_, ctx.resetFieldsSel))
+          exprs.foreach(traverse(_, ctx.resetSelectionCtx))
           traverse(last, ctx)
 
         case LetRec(fds, body) =>
-          fds.foreach(fd => traverse(fd.fullBody, ctx.resetFieldsSel))
+          fds.foreach(fd => traverse(fd.fullBody, ctx.resetSelectionCtx))
           traverse(body, ctx)
 
         case Assert(pred, _, body) =>
-          traverse(pred, ctx.resetFieldsSel)
+          traverse(pred, ctx.resetSelectionCtx)
           traverse(body, ctx)
 
         case Assume(pred, body) =>
-          traverse(pred, ctx.resetFieldsSel)
+          traverse(pred, ctx.resetSelectionCtx)
           traverse(body, ctx)
 
         case Decreases(pred, body) =>
-          traverse(pred, ctx.resetFieldsSel)
+          traverse(pred, ctx.resetSelectionCtx)
           traverse(body, ctx)
 
         case Require(pred, body) =>
-          traverse(pred, ctx.resetFieldsSel)
+          traverse(pred, ctx.resetSelectionCtx)
           traverse(body, ctx)
 
         case Ensuring(body, pred) =>
           traverse(body, ctx)
-          traverse(pred, ctx.resetFieldsSel)
+          traverse(pred, ctx.resetSelectionCtx)
 
         case Operator((es, _)) =>
-          es.foreach(traverse(_, ctx.resetFieldsSel))
+          es.foreach(traverse(_, ctx.resetSelectionCtx))
       }
     }
   }
@@ -1102,6 +1134,136 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       case _ => ExprInfo.empty
     }
     go(e, FieldsSel.Leaf(), bdgs)
+  }
+
+  enum Selection {
+    case Field(id: Identifier)
+    case Array
+  }
+
+  enum BranchingSelections {
+    case Single(sel: Selection, tail: BranchingSelections)
+    case Branch(branches: Seq[BranchingSelections]) // TODO: Ensures no Leaf in branches
+    case Leaf
+
+    def ::(fld: Identifier): BranchingSelections = Selection.Field(fld) :: this
+
+    def ::(sel: Selection): BranchingSelections = this match {
+      case Single(sel2, tail) => Single(sel, Single(sel2, tail))
+      case Branch(branches) => Branch(branches.map(sel :: _))
+      case Leaf => Single(sel, Leaf)
+    }
+
+    /*
+    def allFields: Seq[Identifier] = this match {
+      case Field(fld, tail) => fld +: tail.allFields
+      case Branch(branches) => branches.flatMap(_.allFields)
+      case Leaf => Seq.empty
+    }
+
+    def lastFields: Seq[Identifier] = this match {
+      case Field(fld, _) => Seq(fld)
+      case Branch(branches) => branches.flatMap(_.lastFields)
+      case Leaf => Seq.empty
+    }
+    def withoutLastFields: Selections = this match {
+      case Field(_, tail) => tail
+      case Branch(branches) => Branch(branches.map(_.withoutLastFields))
+      case Leaf => Leaf
+    }
+    */
+  }
+  case class Selections(path: Seq[Selection]) {
+    def :+(sel: Selection): Selections = Selections(path :+ sel)
+    def :+(fld: Identifier): Selections = this :+ Selection.Field(fld)
+  }
+  object Selections {
+    def empty: Selections = Selections(Seq.empty)
+  }
+
+  case class NullableSelections(sels: Set[Selections]) {
+    def isNullable: Boolean = sels(Selections.empty)
+    def isUninit: Boolean = sels.exists(_.path.nonEmpty)
+    def ++(other: NullableSelections): NullableSelections = NullableSelections(sels ++ other.sels)
+  }
+  object NullableSelections {
+    def empty: NullableSelections = NullableSelections(Set.empty)
+  }
+
+  private def nullableSelections(e: Expr, bdgs: Map[Variable, NullableSelections])(using symbols: Symbols): NullableSelections = {
+    def go(e: Expr, ctx: Selections, bdgs: Map[Variable, NullableSelections]): NullableSelections = e match {
+      case NullLit() =>
+        NullableSelections(Set(ctx))
+      case v: Variable =>
+        bdgs.getOrElse(v, NullableSelections.empty)
+      case ClassConstructor(ct, args) =>
+        val fields = symbols.getClass(ct.id).fields
+        assert(args.size == fields.size)
+        val rec = fields.zip(args).flatMap { case (field, arg) => go(arg, ctx :+ field.id, bdgs).sels }.toSet
+        NullableSelections(rec)
+      // TODO: ArrayUpdateD ?
+      case FiniteArray(elems, _) =>
+        val rec = elems.flatMap(go(_, ctx :+ Selection.Array, bdgs).sels).toSet
+        NullableSelections(rec)
+      case LargeArray(elems, default, _, _) =>
+        assert(elems.isEmpty, "What, this elems is actually populated with something???")
+        go(default, ctx :+ Selection.Array, bdgs)
+      case Let(v, e, body) =>
+        val eRec = go(e, Selections.empty, bdgs)
+        go(body, ctx, bdgs + (v.toVariable -> eRec))
+      case LetVar(v, e, body) =>
+        val eRec = go(e, Selections.empty, bdgs)
+        go(body, ctx, bdgs + (v.toVariable -> eRec))
+      case IfExpr(_, thenn, elze) =>
+        val rec = Seq(thenn, elze).flatMap(go(_, ctx, bdgs).sels).toSet
+        NullableSelections(rec)
+      case MatchExpr(_, cases) =>
+        val rec = cases.map(_.rhs).flatMap(go(_, ctx, bdgs).sels).toSet
+        NullableSelections(rec)
+      case Block(_, last) => go(last, ctx, bdgs)
+      case LetRec(_, body) => go(body, ctx, bdgs)
+      case Assert(_, _, body) => go(body, ctx, bdgs)
+      case Assume(_, body) => go(body, ctx, bdgs)
+      case Decreases(_, body) => go(body, ctx, bdgs)
+      case Require(_, body) => go(body, ctx, bdgs)
+      case Ensuring(body, _) => go(body, ctx, bdgs)
+      case _ => NullableSelections.empty
+    }
+    go(e, Selections.empty, bdgs)
+  }
+
+  private def activeSelections(e: Expr, bdgs: Map[Variable, BranchingSelections]): BranchingSelections = {
+    def goBranches(branches: Seq[Expr], bdgs: Map[Variable, BranchingSelections]): BranchingSelections = {
+      val rec = branches.map(go(_, bdgs))
+      BranchingSelections.Branch(rec)
+    }
+    def go(e: Expr, bdgs: Map[Variable, BranchingSelections]): BranchingSelections = e match {
+      case v: Variable =>
+        bdgs.getOrElse(v, BranchingSelections.Leaf)
+      case ArraySelect(arr, _) =>
+        Selection.Array :: go(arr, bdgs)
+      case ClassSelector(recv, selector) =>
+        selector :: go(recv, bdgs)
+      case Let(v, e, body) =>
+        val eRec = go(e, bdgs)
+        go(body, bdgs + (v.toVariable -> eRec))
+      case LetVar(v, e, body) =>
+        val eRec = go(e, bdgs)
+        go(body, bdgs + (v.toVariable -> eRec))
+      case IfExpr(_, thenn, elze) =>
+        goBranches(Seq(thenn, elze), bdgs)
+      case MatchExpr(_, cases) =>
+        goBranches(cases.map(_.rhs), bdgs)
+      case Block(_, last) => go(last, bdgs)
+      case LetRec(_, body) => go(body, bdgs)
+      case Assert(_, _, body) => go(body, bdgs)
+      case Assume(_, body) => go(body, bdgs)
+      case Decreases(_, body) => go(body, bdgs)
+      case Require(_, body) => go(body, bdgs)
+      case Ensuring(body, _) => go(body, bdgs)
+      case _ => BranchingSelections.Leaf
+    }
+    go(e, bdgs)
   }
 
   ///////////////////////////////////////////////////////////////////////////
