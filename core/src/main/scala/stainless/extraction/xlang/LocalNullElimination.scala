@@ -17,7 +17,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
   case class TransformerContext(symbols: Symbols,
                                 optionMutDefs: OptionMutDefs,
-                                classesConsInfo: Map[Identifier, ClassConsInfo],
+                                classesConsInfo: Map[Identifier, NullableSelections],
                                 uninitClasses: UninitClassDefs) {
     def allNewClasses: Seq[ClassDef] = optionMutDefs.allNewClasses ++ uninitClasses.allNewClasses
     def allNewFunctions: Seq[FunDef] = optionMutDefs.allNewFunctions ++ uninitClasses.allNewFunctions
@@ -45,7 +45,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     println("===========================================")
     println("===========================================")
     */
-    TransformerContext(symbols, optMutDefs, uninitCC.classesConsInfo, uninitClasses)
+//    TransformerContext(symbols, optMutDefs, uninitCC.classesConsInfo, uninitClasses)
+    ???
   }
 
   override protected def extractFunction(context: TransformerContext, fd: s.FunDef): (t.FunDef, Unit) = {
@@ -135,6 +136,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     override def transform(e: Expr, env: Env): Expr = {
       e match {
         case NullLit() =>
+          ???
+          /*
           env.ctxKind match {
             case CtxKind.ConstructionOrBinding(_, nullable, expectedType) =>
               if (!nullable) throw MalformedStainlessCode(e, "Unsupported usage of `null` (construction or binding)")
@@ -144,7 +147,10 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             case CtxKind.FieldSelection(_) => throw MalformedStainlessCode(e, "Unsupported usage of `null` (field selection)")
             case CtxKind.Pure() => throw MalformedStainlessCode(e, "Unsupported usage of `null` (pure context)")
           }
+          */
         case v: Variable =>
+          ???
+          /*
           val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
           env.bdgs.get(v) match {
             case Some(BdgInfo(ExprInfo(_, vFullyInit, vNullable), vNewTpe)) =>
@@ -153,11 +159,13 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             case None =>
               adaptExpression(v, v.tpe, v.tpe, true, false, resFullyInit, resNullable)
           }
-
+          */
         case Let(vd, ee, body) => letCase(vd, ee, body, env)(Let.apply).copiedFrom(e)
         case LetVar(vd, ee, body) => letCase(vd, ee, body, env)(LetVar.apply).copiedFrom(e)
 
         case FiniteArray(elems, base) =>
+          ???
+          /*
           val (elemsFullyInit, elemsNullable, newBase) = base match {
             case ct: ClassType =>
               tc.uninitClasses.init2cd.get(ct.id) match {
@@ -174,7 +182,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           val recElems = elems.map(transform(_, recEnv))
           val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
           adaptExpression(FiniteArray(recElems, newBase), eOrigTpe = ArrayType(base), eNewTpe = ArrayType(newBase), elemsFullyInit, elemsNullable, resFullyInit, resNullable)
-
+          */
         case ArrayUpdate(arr, ix, value) =>
           ???
 
@@ -182,6 +190,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           ???
 
         case ArraySelect(arr, ix) =>
+          ???
+          /*
           val arrInfo = exprInfoOf(arr, env.bdgs.view.mapValues(_.info).toMap)
           val arrRec = transform(arr, Env(CtxKind.FieldSelection(arrInfo.fullyInit), env.bdgs))
           val ixRec = transform(ix, env.withPureCtx)
@@ -199,8 +209,10 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
           // TODO: No, there is a difference between being nullable and having the element being nullable!!!!
           adaptExpression(ArraySelect(arrRec, ixRec), eOrigTpe = origTpe, eNewTpe = tpe2, eFullyInit = arrInfo.fullyInit, eNullable = arrInfo.fullyInit, resFullyInit, resNullable)
-
+          */
         case ClassConstructor(ct, args) =>
+          ???
+          /*
           val fieldsOrig = tc.symbols.getClass(ct.id).fields
           val (argsEnv, useUninit) = tc.uninitClasses.init2cd.get(ct.id) match {
             case Some(uninitCd) =>
@@ -237,8 +249,10 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           }
           val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
           adaptExpression(e1, eOrigTpe = ct, eNewTpe = tpe1, !useUninit, false, resFullyInit, resNullable)
-
+          */
         case ClassSelector(recv, selector) =>
+          ???
+          /*
           val recvInfo = exprInfoOf(recv, env.bdgs.view.mapValues(_.info).toMap)
           val recvRec = transform(recv, Env(CtxKind.FieldSelection(recvInfo.fullyInit), env.bdgs))
           val clsId = fieldsOfClass(selector)
@@ -257,8 +271,10 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           }
           val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
           adaptExpression(e2, eOrigTpe = origTpe, eNewTpe = tpe2, selFullyInit, selNullable, resFullyInit, resNullable)
-
+          */
         case Assignment(v, value) =>
+          ???
+          /*
           assert(env.ctxKind == CtxKind.Pure())
           val (ctxKind, newTpe) = env.bdgs.get(v) match {
             case Some(BdgInfo(ExprInfo(_, fullyInit, nullable), newTpe)) =>
@@ -267,8 +283,11 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           }
           val valueRec = transform(value, Env(ctxKind, env.bdgs))
           Assignment(v.copy(tpe = newTpe), valueRec).copiedFrom(e)
+          */
 
         case fa @ FieldAssignment(recv, selector, value) =>
+          ???
+          /*
           assert(env.ctxKind == CtxKind.Pure())
           val recvInfo = exprInfoOf(recv, env.bdgs.view.mapValues(_.info).toMap)
           val recvRec = transform(recv, Env(CtxKind.FieldSelection(recvInfo.fullyInit), env.bdgs))
@@ -290,6 +309,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           }
           val valueRec = transform(value, Env(valueCtxKind, env.bdgs))
           FieldAssignment(recvRec, selId, valueRec).copiedFrom(e)
+          */
 
         case IfExpr(cond, thenn, elze) =>
           val condRec = transform(cond, env.withPureCtx)
@@ -342,6 +362,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           Ensuring(bodyRec, predRec.asInstanceOf[Lambda]).copiedFrom(e)
 
         case Operator(es, recons) =>
+          ???
+          /*
           val eTpe = e.getType(using tc.symbols)
           val esRec = es.map(transform(_, env.withPureCtx))
           val e2 = recons(esRec).copiedFrom(e)
@@ -358,6 +380,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             }
           }
           if (resNullable) some(e3, e3Tpe) else e3
+          */
       }
     }
 
@@ -1176,6 +1199,9 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
   case class Selections(path: Seq[Selection]) {
     def :+(sel: Selection): Selections = Selections(path :+ sel)
     def :+(fld: Identifier): Selections = this :+ Selection.Field(fld)
+    def ++(other: Selections): Selections = Selections(path ++ other.path)
+    def ::(fld: Identifier): Selections = Selection.Field(fld) :: this
+    def ::(sel: Selection): Selections = Selections(sel +: path)
   }
   object Selections {
     def empty: Selections = Selections(Seq.empty)
@@ -1185,51 +1211,66 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     def isNullable: Boolean = sels(Selections.empty)
     def isUninit: Boolean = sels.exists(_.path.nonEmpty)
     def ++(other: NullableSelections): NullableSelections = NullableSelections(sels ++ other.sels)
+    def filter(prefix: Selection): NullableSelections =
+      NullableSelections(sels.flatMap { sels =>
+        // TODO: What if recv itself is nullable?
+        if (sels.path.nonEmpty && sels.path.head == prefix) Some(Selections(sels.path.tail))
+        else None
+      })
+    def :::(prefix: Selections): NullableSelections = NullableSelections(sels.map(prefix ++ _))
+    def ::(fld: Identifier): NullableSelections = Selection.Field(fld) :: this
+    def ::(sel: Selection): NullableSelections = NullableSelections(sels.map(sel :: _))
   }
   object NullableSelections {
     def empty: NullableSelections = NullableSelections(Set.empty)
   }
 
   private def nullableSelections(e: Expr, bdgs: Map[Variable, NullableSelections])(using symbols: Symbols): NullableSelections = {
-    def go(e: Expr, ctx: Selections, bdgs: Map[Variable, NullableSelections]): NullableSelections = e match {
+    def go(e: Expr, bdgs: Map[Variable, NullableSelections]): NullableSelections = e match {
       case NullLit() =>
-        NullableSelections(Set(ctx))
+        NullableSelections(Set(Selections.empty))
       case v: Variable =>
         bdgs.getOrElse(v, NullableSelections.empty)
       case ClassConstructor(ct, args) =>
         val fields = symbols.getClass(ct.id).fields
         assert(args.size == fields.size)
-        val rec = fields.zip(args).flatMap { case (field, arg) => go(arg, ctx :+ field.id, bdgs).sels }.toSet
+        val rec = fields.zip(args).flatMap { case (field, arg) => (field.id :: go(arg, bdgs)).sels }.toSet
         NullableSelections(rec)
       // TODO: ArrayUpdateD ?
       case FiniteArray(elems, _) =>
-        val rec = elems.flatMap(go(_, ctx :+ Selection.Array, bdgs).sels).toSet
+        val rec = elems.flatMap(e => (Selection.Array :: go(e, bdgs)).sels).toSet
         NullableSelections(rec)
       case LargeArray(elems, default, _, _) =>
         assert(elems.isEmpty, "What, this elems is actually populated with something???")
-        go(default, ctx :+ Selection.Array, bdgs)
+        Selection.Array :: go(default, bdgs)
+      case ClassSelector(recv, sel) =>
+        // TODO: What if recv itself is nullable?
+        go(recv, bdgs).filter(Selection.Field(sel))
+      case ArraySelect(arr, _) =>
+        // TODO: What if arr itself is nullable?
+        go(arr, bdgs).filter(Selection.Array)
       case Let(v, e, body) =>
-        val eRec = go(e, Selections.empty, bdgs)
-        go(body, ctx, bdgs + (v.toVariable -> eRec))
+        val eRec = go(e, bdgs)
+        go(body, bdgs + (v.toVariable -> eRec))
       case LetVar(v, e, body) =>
-        val eRec = go(e, Selections.empty, bdgs)
-        go(body, ctx, bdgs + (v.toVariable -> eRec))
+        val eRec = go(e, bdgs)
+        go(body, bdgs + (v.toVariable -> eRec))
       case IfExpr(_, thenn, elze) =>
-        val rec = Seq(thenn, elze).flatMap(go(_, ctx, bdgs).sels).toSet
+        val rec = Seq(thenn, elze).flatMap(go(_, bdgs).sels).toSet
         NullableSelections(rec)
       case MatchExpr(_, cases) =>
-        val rec = cases.map(_.rhs).flatMap(go(_, ctx, bdgs).sels).toSet
+        val rec = cases.map(_.rhs).flatMap(go(_, bdgs).sels).toSet
         NullableSelections(rec)
-      case Block(_, last) => go(last, ctx, bdgs)
-      case LetRec(_, body) => go(body, ctx, bdgs)
-      case Assert(_, _, body) => go(body, ctx, bdgs)
-      case Assume(_, body) => go(body, ctx, bdgs)
-      case Decreases(_, body) => go(body, ctx, bdgs)
-      case Require(_, body) => go(body, ctx, bdgs)
-      case Ensuring(body, _) => go(body, ctx, bdgs)
+      case Block(_, last) => go(last, bdgs)
+      case LetRec(_, body) => go(body, bdgs)
+      case Assert(_, _, body) => go(body, bdgs)
+      case Assume(_, body) => go(body, bdgs)
+      case Decreases(_, body) => go(body, bdgs)
+      case Require(_, body) => go(body, bdgs)
+      case Ensuring(body, _) => go(body, bdgs)
       case _ => NullableSelections.empty
     }
-    go(e, Selections.empty, bdgs)
+    go(e, bdgs)
   }
 
   private def activeSelections(e: Expr, bdgs: Map[Variable, BranchingSelections]): BranchingSelections = {
@@ -1294,7 +1335,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       Seq(IsAbstract, IsSealed, IsMutable)
     )
     val someTp = TypeParameter(FreshIdentifier("A"), Seq(IsMutable))
-    val valueVd = ValDef(value, someTp, Seq.empty)
+    val valueVd = ValDef(value, someTp, Seq(IsVar))
     val someCD = new ClassDef(
       some,
       Seq(TypeParameterDef(someTp)),
