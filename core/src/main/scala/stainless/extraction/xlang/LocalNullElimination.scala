@@ -902,10 +902,22 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
     var classesNullableSelections: Map[Identifier, NullableSelections] =
       symbols.classes.keySet.map(_ -> NullableSelections.empty).toMap
-
+    /*
     val fieldsOfClass: Map[Identifier, Identifier] = {
       symbols.classes.flatMap { case (clsId, cd) =>
         cd.fields.map(_.id -> clsId).toMap
+      }
+    }
+    */
+
+    private def updateNullable(sels: Selections): Unit = {
+      val selsPerField = sels.groupByField
+      for ((_, cd) <- symbols.classes) {
+        val currNullable = classesNullableSelections(cd.id)
+        val newNullable = cd.fields.foldLeft(currNullable) {
+          case (acc, fld) => acc union NullableSelections(selsPerField.getOrElse(fld.id, Selections.empty))
+        }
+        classesNullableSelections = classesNullableSelections.updated(cd.id, newNullable)
       }
     }
 
@@ -913,42 +925,13 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 //      println(s"$e -> $ctx")
       e match {
         case NullLit() =>
-          /*
-          val last = ctx.fieldsSel.lastFields
-          for (fld <- last) {
-            val cls = fieldsOfClass(fld)
-            classesConsInfo = classesConsInfo.updated(cls, classesConsInfo(cls).setNullable(fld))
-          }
-          val woLast = ctx.fieldsSel.withoutLastFields.allFields
-          for (fld <- woLast) {
-            val cls = fieldsOfClass(fld)
-            classesConsInfo = classesConsInfo.updated(cls, classesConsInfo(cls).setUninit(fld))
-          }
-          */
+          updateNullable(ctx.currSels)
+
         case v: Variable =>
-          /*
-          ctx.bdgs.get(v) match {
-            case Some(ExprInfo(_, fullyInit, nullable)) =>
-              if (!fullyInit || nullable) {
-                val last = ctx.fieldsSel.lastFields
-                for (fld <- last) {
-                  val cls = fieldsOfClass(fld)
-                  if (!fullyInit) {
-                    classesConsInfo = classesConsInfo.updated(cls, classesConsInfo(cls).setUninit(fld))
-                  }
-                  if (nullable) {
-                    classesConsInfo = classesConsInfo.updated(cls, classesConsInfo(cls).setNullable(fld))
-                  }
-                }
-                val woLast = ctx.fieldsSel.withoutLastFields.allFields
-                for (fld <- woLast) {
-                  val cls = fieldsOfClass(fld)
-                  classesConsInfo = classesConsInfo.updated(cls, classesConsInfo(cls).setUninit(fld))
-                }
-              }
+          ctx.bdgsNullable.get(v) match {
+            case Some(nullable) => updateNullable(ctx.currSels append nullable.sels)
             case None => ()
           }
-          */
 
         case ClassConstructor(ct, args) =>
           if (ct.tps.nonEmpty) {
@@ -1179,11 +1162,14 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
   }
 
   case class Selections(sels: Set[PathSelection]) {
+    require(Selections.headInvariant(sels))
+    require(Selections.fieldInvariant(sels))
+
     def isEmpty: Boolean = sels.isEmpty
 
     def containsEmptyPath: Boolean = sels(PathSelection.empty)
 
-    def containsNonEmptyPath: Boolean = sels.exists(_.path.nonEmpty)
+    def containsNonEmptyPath: Boolean = Selections.containsNonEmptyPath(sels)
 
     def union(other: Selections): Selections = Selections(sels union other.sels)
 
@@ -1197,15 +1183,73 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
     def :+(fld: Identifier): Selections = this :+ Selection.Field(fld)
 
+    def append(other: Selections): Selections = Selections(sels.flatMap(ps => other.sels.map(ps ++ _)))
+
     def filter(prefix: Selection): Selections = Selections(sels.flatMap { ps =>
       // TODO: What if ps.path is empty? Should we include it or not?
       if (ps.path.nonEmpty && ps.path.head == prefix) Some(PathSelection(ps.path.tail))
       else None
     })
+
+    def groupByField: Map[Identifier, Selections] = Selections.groupByField(sels).view.mapValues(Selections.apply).toMap
+
+//    def withArrayStartStripped: Selections = Selections(sels.flatMap { ps =>
+//      if (ps.path.isEmpty) Some(ps)
+//      else ps.path.head match {
+//        case Selection.Field(ps) =>
+//      }
+//    })
   }
   object Selections {
     def empty: Selections = Selections(Set.empty)
     def withEmptyPath: Selections = Selections(Set(PathSelection.empty))
+
+    private def containsNonEmptyPath(sels: Set[PathSelection]): Boolean = sels.exists(_.path.nonEmpty)
+
+    private def noArrayStart(sels: Set[PathSelection]): Boolean = sels.forall(ps => ps.path.isEmpty || (ps.path.head match {
+      case Selection.Array => false
+      case Selection.Field(_) => true
+    }))
+
+    private def noFieldStart(sels: Set[PathSelection]): Boolean = sels.forall(ps => ps.path.isEmpty || (ps.path.head match {
+      case Selection.Field(_) => false
+      case Selection.Array => true
+    }))
+
+    private def headInvariant(sels: Set[PathSelection]): Boolean =
+      !containsNonEmptyPath(sels) || (noArrayStart(sels) == !noFieldStart(sels))
+
+    private def fieldInvariant(sels: Set[PathSelection]): Boolean =
+      groupByField(sels).values.forall(headInvariant)
+
+    private def groupByField(sels: Set[PathSelection]): Map[Identifier, Set[PathSelection]] = {
+      type FldMap = Map[Identifier, Set[PathSelection]]
+
+      def add(m: FldMap, fld: Identifier, pss: Set[PathSelection]): FldMap =
+        m.updatedWith(fld)(_.map(_ union pss).orElse(Some(pss)))
+
+      def combine(m1: FldMap, m2: FldMap): FldMap = {
+        (m1.keySet ++ m2.keySet).foldLeft(Map.empty : FldMap) {
+          case (acc, fld) =>
+            acc + (fld -> (m1.getOrElse(fld, Set.empty) union m2.getOrElse(fld, Set.empty)))
+        }
+      }
+
+      def group(ps: PathSelection): FldMap = {
+        ps.path.indices.foldLeft(Map.empty : FldMap) {
+          case (acc, i) =>
+            ps.path(i) match {
+              case Selection.Field(fld) =>
+                val rest = PathSelection(ps.path.drop(i + 1))
+                add(acc, fld, Set(rest))
+              case Selection.Array => acc
+            }
+        }
+      }
+      sels.foldLeft(Map.empty : FldMap) {
+        case (acc, ps) => combine(acc, group(ps))
+      }
+    }
   }
 
   case class NullableSelections(sels: Selections) {
