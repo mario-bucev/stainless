@@ -17,7 +17,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
   case class TransformerContext(symbols: Symbols,
                                 optionMutDefs: OptionMutDefs,
-                                classesConsInfo: Map[Identifier, NullableSelections],
+                                classesNullableSelections: Map[Identifier, NullableSelections],
                                 uninitClasses: UninitClassDefs) {
     def allNewClasses: Seq[ClassDef] = optionMutDefs.allNewClasses ++ uninitClasses.allNewClasses
     def allNewFunctions: Seq[FunDef] = optionMutDefs.allNewFunctions ++ uninitClasses.allNewFunctions
@@ -28,9 +28,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
     val uninitCC = new UninitClassesCollector
     for ((_, fd) <- symbols.functions) {
-//      if (fd.id.name.contains("test")) {
       uninitCC.traverse(fd.fullBody, uninitCC.Env.init)
-//      }
     }
 
     // println(uninitCC.classesConsInfo)
@@ -39,7 +37,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
     // println("---------------")
 
-    val uninitClasses = createUninitClasses(symbols, optMutDefs, uninitCC.classesConsInfo)
+//    val uninitClasses = createUninitClasses(symbols, optMutDefs, uninitCC.classesNullableSelections)
+
     /*
     println(uninitClasses.init2cd.mkString("\n"))
     println("===========================================")
@@ -455,9 +454,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       case li: LeafOrIntermediate => li.toInitArrId_
     }
   }
-//  case class UninitClassDef(cd: ClassDef, toInit: FunDef, fromInit: FunDef)
 
-  // TODO: Don't force OptionMut if we can avoid it
   private def createUninitClasses(symbols: Symbols,
                                   optionMutDefs: OptionMutDefs,
                                   classesConsInfo: Map[Identifier, ClassConsInfo]): UninitClassDefs = {
@@ -899,10 +896,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       def init: Env = Env(BranchingSelections.Leaf, Map.empty, Map.empty)
     }
 
-    var classesConsInfo: Map[Identifier, ClassConsInfo] =
-      symbols.classes.map { case (clsId, cd) =>
-        clsId -> ClassConsInfo(cd.fields.map(vd => vd.id -> FieldInfo(nullable = false, fullyInit = true)).toMap)
-      }
+    var classesNullableSelections: Map[Identifier, NullableSelections] =
+      symbols.classes.keySet.map(_ -> NullableSelections.empty).toMap
 
     val fieldsOfClass: Map[Identifier, Identifier] = {
       symbols.classes.flatMap { case (clsId, cd) =>
@@ -1167,7 +1162,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
   enum BranchingSelections {
     case Single(sel: Selection, tail: BranchingSelections)
     case Branch(branches: Seq[BranchingSelections]) // TODO: Ensures no Leaf in branches
-    case Leaf
+    case Leaf // TODO: !!! Ne pas interpreter necessairement comme "nullable" !!!!
 
     def ::(fld: Identifier): BranchingSelections = Selection.Field(fld) :: this
 
