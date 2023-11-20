@@ -884,16 +884,20 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
   private class UninitClassesCollector(using symbols: Symbols) extends inox.transformers.Traverser {
     override val trees: s.type = s
-    case class Env(bSel: BranchingSelections,
-                   bdgsSels: Map[Variable, BranchingSelections],
+    case class Env(currSels: Selections,
+                   bdgsSels: Map[Variable, Selections],
                    bdgsNullable: Map[Variable, NullableSelections]) {
-      def resetSelectionCtx: Env = copy(bSel = BranchingSelections.Leaf)
-      def ::(fld: Identifier): Env = copy(bSel = fld :: bSel)
-      def +(kv: (Variable, (BranchingSelections, NullableSelections))): Env =
-        Env(bSel, bdgsSels + (kv._1 -> kv._2._1), bdgsNullable + (kv._1 -> kv._2._2))
+      def resetSelectionCtx: Env = copy(currSels = Selections.empty) // TODO: Or withEmptyPath?
+
+      def :+(fld: Identifier): Env = copy(currSels = currSels :+ fld)
+
+      def :+(sel: Selection): Env = copy(currSels = currSels :+ sel)
+
+      def +(kv: (Variable, (Selections, NullableSelections))): Env =
+        Env(currSels, bdgsSels + (kv._1 -> kv._2._1), bdgsNullable + (kv._1 -> kv._2._2))
     }
     object Env {
-      def init: Env = Env(BranchingSelections.Leaf, Map.empty, Map.empty)
+      def init: Env = Env(Selections.empty, Map.empty, Map.empty) // TODO: Or withEmptyPath?
     }
 
     var classesNullableSelections: Map[Identifier, NullableSelections] =
@@ -948,7 +952,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
         case ClassConstructor(ct, args) =>
           if (ct.tps.nonEmpty) {
-            val argsNullable = args.foldLeft(NullableSelections.empty)(_ ++ nullableSelections(_, ctx.bdgsNullable))
+            val argsNullable = args.foldLeft(NullableSelections.empty)(_ union nullableSelections(_, ctx.bdgsNullable))
             if (argsNullable.isNullable || argsNullable.isUninit) {
               throw MalformedStainlessCode(e, "Cannot have uninitialized or nullable fields for parametric classes")
             }
@@ -956,13 +960,13 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           val cd = symbols.getClass(ct.id)
           assert(cd.fields.size == args.size)
           for ((fld, arg) <- cd.fields zip args) {
-            traverse(arg, fld.id :: ctx)
+            traverse(arg, ctx :+ fld.id)
           }
 
         case FieldAssignment(recv, selector, value) =>
           traverse(recv, ctx.resetSelectionCtx)
           val recvSels = activeSelections(recv, ctx.bdgsSels)
-          traverse(value, selector :: ctx)
+          traverse(value, ctx.copy(currSels = recvSels :+ selector))
 
         case ClassSelector(recv, selector) =>
           traverse(recv, ctx.resetSelectionCtx)
@@ -970,13 +974,13 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         // TODO: ArrayUpdateD ?
         case FiniteArray(elems, _) =>
           for (elem <- elems) {
-            traverse(elem, ctx.copy(bSel = Selection.Array :: ctx.bSel))
+            traverse(elem, ctx :+ Selection.Array)
           }
 
         case LargeArray(elems, default, sze, _) =>
           assert(elems.isEmpty, "What, this elems is actually populated with something???")
           traverse(sze, ctx.resetSelectionCtx)
-          traverse(default, ctx.copy(bSel = Selection.Array :: ctx.bSel))
+          traverse(default, ctx :+ Selection.Array)
 
         case ArraySelect(arr, ix) =>
           traverse(arr, ctx.resetSelectionCtx)
@@ -986,7 +990,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           traverse(arr, ctx.resetSelectionCtx)
           traverse(ix, ctx.resetSelectionCtx)
           val arrSels = activeSelections(arr, ctx.bdgsSels)
-          traverse(value, ctx.copy(bSel = Selection.Array :: arrSels))
+          traverse(value, ctx.copy(currSels = arrSels :+ Selection.Array))
 
         case Let(vd, e, body) =>
           val eSels = activeSelections(e, ctx.bdgsSels)
@@ -1159,82 +1163,91 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     case Array
   }
 
-  enum BranchingSelections {
-    case Single(sel: Selection, tail: BranchingSelections)
-    case Branch(branches: Seq[BranchingSelections]) // TODO: Ensures no Leaf in branches
-    case Leaf // TODO: !!! Ne pas interpreter necessairement comme "nullable" !!!!
+  case class PathSelection(path: Seq[Selection]) {
+    def :+(sel: Selection): PathSelection = PathSelection(path :+ sel)
 
-    def ::(fld: Identifier): BranchingSelections = Selection.Field(fld) :: this
+    def :+(fld: Identifier): PathSelection = this :+ Selection.Field(fld)
 
-    def ::(sel: Selection): BranchingSelections = this match {
-      case Single(sel2, tail) => Single(sel, Single(sel2, tail))
-      case Branch(branches) => Branch(branches.map(sel :: _))
-      case Leaf => Single(sel, Leaf)
-    }
+    def ++(other: PathSelection): PathSelection = PathSelection(path ++ other.path)
 
-    /*
-    def allFields: Seq[Identifier] = this match {
-      case Field(fld, tail) => fld +: tail.allFields
-      case Branch(branches) => branches.flatMap(_.allFields)
-      case Leaf => Seq.empty
-    }
+    def ::(fld: Identifier): PathSelection = Selection.Field(fld) :: this
 
-    def lastFields: Seq[Identifier] = this match {
-      case Field(fld, _) => Seq(fld)
-      case Branch(branches) => branches.flatMap(_.lastFields)
-      case Leaf => Seq.empty
-    }
-    def withoutLastFields: Selections = this match {
-      case Field(_, tail) => tail
-      case Branch(branches) => Branch(branches.map(_.withoutLastFields))
-      case Leaf => Leaf
-    }
-    */
+    def ::(sel: Selection): PathSelection = PathSelection(sel +: path)
   }
-  case class Selections(path: Seq[Selection]) {
-    def :+(sel: Selection): Selections = Selections(path :+ sel)
-    def :+(fld: Identifier): Selections = this :+ Selection.Field(fld)
-    def ++(other: Selections): Selections = Selections(path ++ other.path)
+  object PathSelection {
+    def empty: PathSelection = PathSelection(Seq.empty)
+  }
+
+  case class Selections(sels: Set[PathSelection]) {
+    def isEmpty: Boolean = sels.isEmpty
+
+    def containsEmptyPath: Boolean = sels(PathSelection.empty)
+
+    def containsNonEmptyPath: Boolean = sels.exists(_.path.nonEmpty)
+
+    def union(other: Selections): Selections = Selections(sels union other.sels)
+
+    def ::(sel: Selection): Selections = Selections(sels.map(sel :: _))
+
     def ::(fld: Identifier): Selections = Selection.Field(fld) :: this
-    def ::(sel: Selection): Selections = Selections(sel +: path)
+
+    def :::(prefix: PathSelection): Selections = Selections(sels.map(prefix ++ _))
+
+    def :+(sel: Selection): Selections = Selections(sels.map(_ :+ sel))
+
+    def :+(fld: Identifier): Selections = this :+ Selection.Field(fld)
+
+    def filter(prefix: Selection): Selections = Selections(sels.flatMap { ps =>
+      // TODO: What if ps.path is empty? Should we include it or not?
+      if (ps.path.nonEmpty && ps.path.head == prefix) Some(PathSelection(ps.path.tail))
+      else None
+    })
   }
   object Selections {
-    def empty: Selections = Selections(Seq.empty)
+    def empty: Selections = Selections(Set.empty)
+    def withEmptyPath: Selections = Selections(Set(PathSelection.empty))
   }
 
-  case class NullableSelections(sels: Set[Selections]) {
-    def isNullable: Boolean = sels(Selections.empty)
-    def isUninit: Boolean = sels.exists(_.path.nonEmpty)
-    def ++(other: NullableSelections): NullableSelections = NullableSelections(sels ++ other.sels)
-    def filter(prefix: Selection): NullableSelections =
-      NullableSelections(sels.flatMap { sels =>
-        // TODO: What if recv itself is nullable?
-        if (sels.path.nonEmpty && sels.path.head == prefix) Some(Selections(sels.path.tail))
-        else None
-      })
-    def :::(prefix: Selections): NullableSelections = NullableSelections(sels.map(prefix ++ _))
-    def ::(fld: Identifier): NullableSelections = Selection.Field(fld) :: this
-    def ::(sel: Selection): NullableSelections = NullableSelections(sels.map(sel :: _))
+  case class NullableSelections(sels: Selections) {
+    def isNullable: Boolean = sels.containsEmptyPath
+
+    def isUninit: Boolean = sels.containsNonEmptyPath
+
+    def union(other: NullableSelections): NullableSelections = NullableSelections(sels union other.sels)
+
+    def ::(fld: Identifier): NullableSelections = NullableSelections(fld :: sels)
+
+    def ::(sel: Selection): NullableSelections = NullableSelections(sel :: sels)
+
+    def :::(prefix: PathSelection): NullableSelections = NullableSelections(prefix ::: sels)
+
+    // TODO: What if recv itself is nullable?
+    def filter(prefix: Selection): NullableSelections = NullableSelections(sels filter prefix)
   }
   object NullableSelections {
-    def empty: NullableSelections = NullableSelections(Set.empty)
+    def empty: NullableSelections = NullableSelections(Selections.empty)
+    def nullable: NullableSelections = NullableSelections(Selections.withEmptyPath)
   }
 
   private def nullableSelections(e: Expr, bdgs: Map[Variable, NullableSelections])(using symbols: Symbols): NullableSelections = {
     def go(e: Expr, bdgs: Map[Variable, NullableSelections]): NullableSelections = e match {
       case NullLit() =>
-        NullableSelections(Set(Selections.empty))
+        NullableSelections.nullable
       case v: Variable =>
         bdgs.getOrElse(v, NullableSelections.empty)
       case ClassConstructor(ct, args) =>
         val fields = symbols.getClass(ct.id).fields
         assert(args.size == fields.size)
-        val rec = fields.zip(args).flatMap { case (field, arg) => (field.id :: go(arg, bdgs)).sels }.toSet
-        NullableSelections(rec)
+        fields.zip(args).foldLeft(NullableSelections.empty) {
+          case (acc, (field, arg)) =>
+            acc union (field.id :: go(arg, bdgs))
+        }
       // TODO: ArrayUpdateD ?
       case FiniteArray(elems, _) =>
-        val rec = elems.flatMap(e => (Selection.Array :: go(e, bdgs)).sels).toSet
-        NullableSelections(rec)
+        elems.foldLeft(NullableSelections.empty) {
+          case (acc, elem) =>
+            acc union (Selection.Array :: go(elem, bdgs))
+        }
       case LargeArray(elems, default, _, _) =>
         assert(elems.isEmpty, "What, this elems is actually populated with something???")
         Selection.Array :: go(default, bdgs)
@@ -1251,11 +1264,12 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         val eRec = go(e, bdgs)
         go(body, bdgs + (v.toVariable -> eRec))
       case IfExpr(_, thenn, elze) =>
-        val rec = Seq(thenn, elze).flatMap(go(_, bdgs).sels).toSet
-        NullableSelections(rec)
+        go(thenn, bdgs) union go(elze, bdgs)
       case MatchExpr(_, cases) =>
-        val rec = cases.map(_.rhs).flatMap(go(_, bdgs).sels).toSet
-        NullableSelections(rec)
+        cases.foldLeft(NullableSelections.empty) {
+          case (acc, cse) =>
+            acc union go(cse.rhs, bdgs)
+        }
       case Block(_, last) => go(last, bdgs)
       case LetRec(_, body) => go(body, bdgs)
       case Assert(_, _, body) => go(body, bdgs)
@@ -1268,18 +1282,17 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     go(e, bdgs)
   }
 
-  private def activeSelections(e: Expr, bdgs: Map[Variable, BranchingSelections]): BranchingSelections = {
-    def goBranches(branches: Seq[Expr], bdgs: Map[Variable, BranchingSelections]): BranchingSelections = {
-      val rec = branches.map(go(_, bdgs))
-      BranchingSelections.Branch(rec)
-    }
-    def go(e: Expr, bdgs: Map[Variable, BranchingSelections]): BranchingSelections = e match {
+  private def activeSelections(e: Expr, bdgs: Map[Variable, Selections]): Selections = {
+    def goBranches(branches: Seq[Expr], bdgs: Map[Variable, Selections]): Selections =
+      branches.foldLeft(Selections.empty)(_ union go(_, bdgs))
+    // TODO: empty or withEmptyPath?
+    def go(e: Expr, bdgs: Map[Variable, Selections]): Selections = e match {
       case v: Variable =>
-        bdgs.getOrElse(v, BranchingSelections.Leaf)
+        bdgs.getOrElse(v, Selections.empty)
       case ArraySelect(arr, _) =>
-        Selection.Array :: go(arr, bdgs)
+        go(arr, bdgs) :+ Selection.Array
       case ClassSelector(recv, selector) =>
-        selector :: go(recv, bdgs)
+        go(recv, bdgs) :+ selector
       case Let(v, e, body) =>
         val eRec = go(e, bdgs)
         go(body, bdgs + (v.toVariable -> eRec))
@@ -1297,7 +1310,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       case Decreases(_, body) => go(body, bdgs)
       case Require(_, body) => go(body, bdgs)
       case Ensuring(body, _) => go(body, bdgs)
-      case _ => BranchingSelections.Leaf
+      case _ => Selections.empty
     }
     go(e, bdgs)
   }
