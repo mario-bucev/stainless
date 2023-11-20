@@ -37,15 +37,14 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
     // println("---------------")
 
-//    val uninitClasses = createUninitClasses(symbols, optMutDefs, uninitCC.classesNullableSelections)
+    val uninitClasses = createUninitClasses(symbols, optMutDefs, uninitCC.classesNullableSelections)
 
     /*
     println(uninitClasses.init2cd.mkString("\n"))
     println("===========================================")
     println("===========================================")
     */
-//    TransformerContext(symbols, optMutDefs, uninitCC.classesConsInfo, uninitClasses)
-    ???
+    TransformerContext(symbols, optMutDefs, uninitCC.classesNullableSelections, uninitClasses)
   }
 
   override protected def extractFunction(context: TransformerContext, fd: s.FunDef): (t.FunDef, Unit) = {
@@ -457,7 +456,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
   private def createUninitClasses(symbols: Symbols,
                                   optionMutDefs: OptionMutDefs,
-                                  classesConsInfo: Map[Identifier, ClassConsInfo]): UninitClassDefs = {
+                                  classesNullableSelections: Map[Identifier, NullableSelections]): UninitClassDefs = {
     import scala.collection.mutable
     import symbols._
     import exprOps._
@@ -479,7 +478,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
     // TODO: issealed: we must require all known hierarchy
 
-    val initNeedUninit = classesConsInfo.filter(_._2.needsUninit).keySet
+    val initNeedUninit = classesNullableSelections.filter(_._2.isUninit).keySet
     val needUninit = mutable.HashSet.empty[Identifier]
     val topParentOfMap = mutable.Map.empty[Identifier, Identifier]
     val descendantsMap = mutable.Map.empty[Identifier, Set[Identifier]]
@@ -534,22 +533,22 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     def createNewFields(cls: Identifier): Seq[ValDef] = {
       val origCD = symbols.getClass(cls)
       if (isLeaf(cls)) {
-        val info = classesConsInfo(cls)
+        val allNullableSels = classesNullableSelections(cls)
         origCD.fields.map { origVd =>
-          val fldInfo = info.fields(origVd.id)
+          val fldNullableSels = allNullableSels.filter(origVd.id)
 
-          if (!fldInfo.nullable && fldInfo.fullyInit) {
+          if (!fldNullableSels.isNullable && !fldNullableSels.isUninit) {
             ValDef(origVd.id.freshen, origVd.tpe, origVd.flags)
           } else {
             val tpe2 = {
-              if (!fldInfo.fullyInit) {
-                val ClassType(fldCtId, fldTps) = getAsClassType(origVd.tpe) // TODO: Non, array
+              if (fldNullableSels.isUninit) {
+                val ClassType(fldCtId, fldTps) = getAsClassType(origVd.tpe) // TODO: Non, il peut y avoir des array ici
                 assert(init2uninit.contains(fldCtId))
                 ClassType(init2uninit(fldCtId), fldTps)
               } else origVd.tpe
             }
             val tpe3 = {
-              if (fldInfo.nullable) {
+              if (fldNullableSels.isNullable) {
                 ClassType(optionMutDefs.option.id, Seq(tpe2))
               } else {
                 tpe2
@@ -575,7 +574,6 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
     def createUninitClass(cls: Identifier): UninitClassDef = {
       val parent = topParentOfMap(cls)
-      val info = classesConsInfo(cls)
       val origCD = symbols.getClass(cls)
       assert(origCD.typeArgs.isEmpty)
 
@@ -606,9 +604,9 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       }
     }
 
-    def getUnderlyingUninitIdOf(info: FieldInfo, newFld: ValDef): Identifier = {
+    def getUnderlyingUninitIdOf(fldNullableSels: NullableSelections, newFld: ValDef): Identifier = {
       val ClassType(fldClsId, tps) = getAsClassType(newFld.tpe) // TODO: Non, array
-      if (info.nullable) {
+      if (fldNullableSels.isNullable) {
         assert(fldClsId == optionMutDefs.option.id && tps.size == 1)
         val ClassType(fldClsId2, tps2) = getAsClassType(tps.head) // TODO: Non, array
         assert(tps2.isEmpty)
@@ -638,33 +636,36 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       val uninitCls = init2uninit(origCls)
 
       def bodyBuilder(recv: Expr, origCls: Identifier): Expr = {
-        val info = classesConsInfo(origCls)
+        val allNullableSels = classesNullableSelections(origCls)
         val origField = classes(origCls).fields
         val uninitCls = init2uninit(origCls)
 
-        val conjs = info.fields
-          .filter { case (_, info) => info.nullable || !info.fullyInit }
-          .flatMap { case (origFld, info) =>
-            val fldIx = origField.indexWhere(_.id == origFld)
-            val newFld = newFieldsMap(origCls)(fldIx)
-            val sel = ClassSelector(recv, newFld.id)
-            val isDefined = {
-              if (info.nullable) Seq(MethodInvocation(sel, optionMutDefs.isDefined.id, Seq.empty, Seq.empty))
-              else Seq.empty[Expr]
+        val conjs = origField.zipWithIndex
+          .flatMap { case (origFld, fldIx) =>
+            val fldNullableSels = allNullableSels.filter(origFld.id)
+            if (!fldNullableSels.isNullable && !fldNullableSels.isUninit) {
+              Seq.empty[Expr]
+            } else {
+              val newFld = newFieldsMap(origCls)(fldIx)
+              val sel = ClassSelector(recv, newFld.id)
+              val isDefined = {
+                if (fldNullableSels.isNullable) Seq(MethodInvocation(sel, optionMutDefs.isDefined.id, Seq.empty, Seq.empty))
+                else Seq.empty[Expr]
+              }
+              val fldGet = {
+                if (fldNullableSels.isNullable) MethodInvocation(sel, optionMutDefs.get.id, Seq.empty, Seq.empty)
+                else sel
+              }
+              val isInit = {
+                if (fldNullableSels.isUninit) {
+                  val fldClsUninit = getUnderlyingUninitIdOf(fldNullableSels, newFld)
+                  val fldClsInit = uninit2init(fldClsUninit)
+                  Seq(MethodInvocation(fldGet, isInitIds(fldClsInit), Seq.empty, Seq.empty))
+                } else Seq.empty[Expr]
+              }
+              isDefined ++ isInit
             }
-            val fldGet = {
-              if (info.nullable) MethodInvocation(sel, optionMutDefs.get.id, Seq.empty, Seq.empty)
-              else sel
-            }
-            val isInit = {
-              if (!info.fullyInit) {
-                val fldClsUninit = getUnderlyingUninitIdOf(info, newFld)
-                val fldClsInit = uninit2init(fldClsUninit)
-                Seq(MethodInvocation(fldGet, isInitIds(fldClsInit), Seq.empty, Seq.empty))
-              } else Seq.empty[Expr]
-            }
-            isDefined ++ isInit
-          }.toSeq
+          }
         andJoin(conjs)
       }
 
@@ -687,19 +688,19 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       val uninitCls = init2uninit(origCls)
 
       def bodyBuilder(recv: Expr, origCls: Identifier): Expr = {
-        val infos = classesConsInfo(origCls)
+        val allNullableSels = classesNullableSelections(origCls)
         val origFields = classes(origCls).fields
         val uninitCls = init2uninit(origCls)
         val args = origFields.zipWithIndex.map { case (origField, fldIx) =>
           val newFld = newFieldsMap(origCls)(fldIx)
           val sel = FreshCopy(ClassSelector(recv, newFld.id)) // TODO: !!!! NEED CHECKS TO ENSURE NO MUTATION
-          val info = infos.fields(origField.id)
+          val fldNullableSel = allNullableSels.filter(origField.id)
           val get = {
-            if (info.nullable) MethodInvocation(sel, optionMutDefs.get.id, Seq.empty, Seq.empty)
+            if (fldNullableSel.isNullable) MethodInvocation(sel, optionMutDefs.get.id, Seq.empty, Seq.empty)
             else sel
           }
-          if (!info.fullyInit) {
-            val fldClsUninit = getUnderlyingUninitIdOf(info, newFld)
+          if (fldNullableSel.isUninit) {
+            val fldClsUninit = getUnderlyingUninitIdOf(fldNullableSel, newFld)
             val fldClsInit = uninit2init(fldClsUninit)
             MethodInvocation(get, toInitIds(fldClsInit), Seq.empty, Seq.empty)
           } else get
@@ -728,22 +729,22 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       val fromInitVd = ValDef(FreshIdentifier("init"), ClassType(origCls, Seq.empty))
 
       def bodyBuilder(recv: Expr, origCls: Identifier): Expr = {
-        val infos = classesConsInfo(origCls)
+        val allNullableSels = classesNullableSelections(origCls)
         val origFields = classes(origCls).fields
         val uninitCls = init2uninit(origCls)
         val args = origFields.zipWithIndex.map { case (origField, fldIx) =>
           val newFld = newFieldsMap(origCls)(fldIx)
           val sel = FreshCopy(ClassSelector(recv, origField.id)) // TODO: !!!! NEED CHECKS TO ENSURE NO MUTATION
-          val info = infos.fields(origField.id)
+          val fldNullableSel = allNullableSels.filter(origField.id)
           val fromInit = {
-            if (!info.fullyInit) {
-              val fldClsUninit = getUnderlyingUninitIdOf(info, newFld)
+            if (fldNullableSel.isUninit) {
+              val fldClsUninit = getUnderlyingUninitIdOf(fldNullableSel, newFld)
               val fldClsInit = uninit2init(fldClsUninit)
               FunctionInvocation(fromInitIds(fldClsInit), Seq.empty, Seq(sel))
             }
             else sel
           }
-          if (info.nullable) {
+          if (fldNullableSel.isNullable) {
             val ClassType(optId, tps) = getAsClassType(newFld.tpe) // TODO: Non, array
             assert(optId == optionMutDefs.option.id && tps.size == 1)
             ClassConstructor(ClassType(optionMutDefs.some.id, tps), Seq(fromInit))
@@ -1267,6 +1268,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
     // TODO: What if recv itself is nullable?
     def filter(prefix: Selection): NullableSelections = NullableSelections(sels filter prefix)
+
+    def filter(prefix: Identifier): NullableSelections = this filter Selection.Field(prefix)
   }
   object NullableSelections {
     def empty: NullableSelections = NullableSelections(Selections.empty)
@@ -1297,7 +1300,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         Selection.Array :: go(default, bdgs)
       case ClassSelector(recv, sel) =>
         // TODO: What if recv itself is nullable?
-        go(recv, bdgs).filter(Selection.Field(sel))
+        go(recv, bdgs).filter(sel)
       case ArraySelect(arr, _) =>
         // TODO: What if arr itself is nullable?
         go(arr, bdgs).filter(Selection.Array)
