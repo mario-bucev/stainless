@@ -86,15 +86,11 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     }
     case class BdgInfo(nullableSelections: NullableSelections, newTpe: Type)
     enum CtxKind {
-      require(this match {
-        case Impure(nullableSels, _) => !nullableSels.isEmpty
-        case Pure => true
-      })
       case Impure(nullableSels: NullableSelections, expectedType: Type)
       case Pure
     }
 
-    private def adaptType(tpe: Type): Type = {
+    private def toUninitType(tpe: Type): Type = {
       tpe match {
         case ClassType(clsId, clsTps) =>
           assert(clsTps.isEmpty)
@@ -109,10 +105,9 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       }
     }
 
-    private def adaptExpression(e: Expr, eUninit: Boolean, eNullable: Boolean,
+    // TODO: Expliquer pk ce eOrigTpe
+    private def adaptExpression(e: Expr, eOrigTpe: Type, eUninit: Boolean, eNullable: Boolean,
                                 resUninit: Boolean, resNullable: Boolean): Expr = {
-      // TODO: What if e contains null? This will get mapped to NothingType!
-      val eOrigTpe = e.getType
       if (resUninit == !eUninit) {
         val e1 = {
           if (eNullable) get(e).copiedFrom(e)
@@ -142,7 +137,10 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       } else {
         if (resNullable == !eNullable) {
           if (!resNullable) get(e).copiedFrom(e)
-          else some(e, adaptType(eOrigTpe)).copiedFrom(e)
+          else {
+            val tpe = if (eUninit) toUninitType(eOrigTpe) else eOrigTpe
+            some(e, tpe).copiedFrom(e)
+          }
         } else e
       }
     }
@@ -176,7 +174,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
               val ClassType(id, tps) = getAsClassType(expectedType)
               assert(id == tc.optionMutDefs.option.id && tps.size == 1)
               none(tps.head).copiedFrom(e)
-            case CtxKind.Pure => throw MalformedStainlessCode(e, "Unsupported usage of `null` (pure context)")
+            case CtxKind.Pure =>
+              throw MalformedStainlessCode(e, "Unsupported usage of `null` (pure context)")
           }
         case v: Variable =>
           val resUninit = env.nullableSelsOrEmpty.isUninit
@@ -184,9 +183,9 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           env.bdgs.get(v) match {
             case Some(BdgInfo(vNullableSels, newTpe)) =>
               val v2 = v.copy(tpe = newTpe)
-              adaptExpression(v2, eUninit = vNullableSels.isUninit, eNullable = vNullableSels.isNullable, resUninit, resNullable)
+              adaptExpression(v2, v.tpe, eUninit = vNullableSels.isUninit, eNullable = vNullableSels.isNullable, resUninit, resNullable)
             case None =>
-              adaptExpression(v, eUninit = false, eNullable = false, resUninit, resNullable)
+              adaptExpression(v, v.tpe, eUninit = false, eNullable = false, resUninit, resNullable)
           }
           /*
           val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
@@ -320,46 +319,42 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           adaptExpression(e1, eOrigTpe = ct, eNewTpe = tpe1, !useUninit, false, resFullyInit, resNullable)
           */
         case ClassSelector(recv, selector) =>
-          val clsId = fieldsOfClass(selector)
-          val origCd = tc.symbols.getClass(clsId)
-          // TODO: What if there is a null in recv? This will return a NothingType!
+          val origCls = fieldsOfClass(selector)
+          val origCd = tc.symbols.getClass(origCls)
           val origTpe = e.getType
-          val (ctxRecv, newSelector, newTpe) = env.ctxKind match {
-            case CtxKind.Pure => (CtxKind.Pure, selector, origTpe)
-            case CtxKind.Impure(selNullableSels, _) =>
-              val clsNullableSels = tc.classesNullableSelections(clsId)
-              assert(selNullableSels.isSuffixIn(clsNullableSels))
-              // TODO: What about the siblings or descendants???
-              assert(widenedNullableSelection(recv, env) == clsNullableSels)
-              val uninitCd = tc.uninitClasses.init2cd(clsId).cd
-              val ctxRecv = CtxKind.Impure(clsNullableSels, ClassType(uninitCd.id, Seq.empty))
-              val uninitFld = tc.uninitClasses.fieldOfUninit(clsId, selector)
-              (ctxRecv, uninitFld.id, uninitFld.tpe)
-          }
-          val recvRec = transform(recv, env.copy(ctxKind = ctxRecv))
-          val newExpr = ClassSelector(recvRec, newSelector).copiedFrom(e)
-          if (env.nullableSelsOrEmpty.isNullable) some(newExpr, newTpe)
-          else newExpr
-          /*
-          val recvInfo = exprInfoOf(recv, env.bdgs.view.mapValues(_.info).toMap)
-          val recvRec = transform(recv, Env(CtxKind.FieldSelection(recvInfo.fullyInit), env.bdgs))
-          val clsId = fieldsOfClass(selector)
-          val origCd = tc.symbols.getClass(clsId)
-          val origTpe = e.getType(using tc.symbols)
-          val (e2, tpe2, selNullable, selFullyInit) = {
-            if (recvInfo.fullyInit) (ClassSelector(recvRec, selector).copiedFrom(e), origTpe, false, true)
+          val recvNullableSels = widenedNullableSelection(recv, env)
+          val (recvCtx, newSelector, newTpe) = {
+            if (recvNullableSels.isEmpty) (CtxKind.Pure, selector, origTpe)
             else {
-              assert(origCd.tparams.isEmpty)
-              val uninitCd = tc.uninitClasses.init2cd(clsId).cd
-              val selIx = origCd.fields.indexWhere(_.id == selector)
-              val fieldInfo = tc.classesConsInfo(origCd.id).fields(selector)
-              val newSel = uninitCd.fields(selIx)
-              (ClassSelector(recvRec, newSel.id).copiedFrom(e), newSel.tpe, fieldInfo.nullable, fieldInfo.fullyInit)
+              val uninitCls = tc.uninitClasses.init2cd(origCls).cd.id
+              val newSelector = tc.uninitClasses.fieldOfUninit(origCls, selector)
+              (CtxKind.Impure(recvNullableSels.withoutNullable, ClassType(uninitCls, Seq.empty)), newSelector.id, newSelector.tpe)
             }
           }
-          val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
-          adaptExpression(e2, eOrigTpe = origTpe, eNewTpe = tpe2, selFullyInit, selNullable, resFullyInit, resNullable)
-          */
+          val selNullableSels = recvNullableSels.filter(selector)
+          val recvRec = transform(recv, env.copy(ctxKind = recvCtx))
+          val newExpr = ClassSelector(recvRec, newSelector).copiedFrom(e)
+          adaptExpression(newExpr, origTpe,
+            eUninit = selNullableSels.isUninit, eNullable = selNullableSels.isNullable,
+            resUninit = env.nullableSelsOrEmpty.isUninit, resNullable = env.nullableSelsOrEmpty.isNullable)
+//          val recvRec = transform(recv, Env(CtxKind.FieldSelection(recvInfo.fullyInit), env.bdgs))
+//          val clsId = fieldsOfClass(selector)
+//          val origCd = tc.symbols.getClass(clsId)
+//          val origTpe = e.getType(using tc.symbols)
+//          val (e2, tpe2, selNullable, selFullyInit) = {
+//            if (recvInfo.fullyInit) (ClassSelector(recvRec, selector).copiedFrom(e), origTpe, false, true)
+//            else {
+//              assert(origCd.tparams.isEmpty)
+//              val uninitCd = tc.uninitClasses.init2cd(clsId).cd
+//              val selIx = origCd.fields.indexWhere(_.id == selector)
+//              val fieldInfo = tc.classesConsInfo(origCd.id).fields(selector)
+//              val newSel = uninitCd.fields(selIx)
+//              (ClassSelector(recvRec, newSel.id).copiedFrom(e), newSel.tpe, fieldInfo.nullable, fieldInfo.fullyInit)
+//            }
+//          }
+//          val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
+//          adaptExpression(e2, eOrigTpe = origTpe, eNewTpe = tpe2, selFullyInit, selNullable, resFullyInit, resNullable)
+
         case Assignment(v, value) =>
           val (ctxKind, newTpe) = env.bdgs.get(v) match {
             case Some(BdgInfo(nullableSelections, newTpe)) if !nullableSelections.isEmpty =>
@@ -387,7 +382,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             else {
               val uninitCls = tc.uninitClasses.init2cd(origCls).cd.id
               val newSelector = tc.uninitClasses.fieldOfUninit(origCls, selector).id
-              (CtxKind.Impure(recvNullableSels, ClassType(uninitCls, Seq.empty)), newSelector)
+              (CtxKind.Impure(recvNullableSels.withoutNullable, ClassType(uninitCls, Seq.empty)), newSelector)
             }
           }
           val recvRec = transform(recv, env.copy(ctxKind = recvCtx))
@@ -484,7 +479,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           env.ctxKind match {
             case CtxKind.Pure => newE
             case CtxKind.Impure(nullableSels, _) =>
-              adaptExpression(newE, eUninit = false, eNullable = false, nullableSels.isUninit, nullableSels.isNullable)
+              adaptExpression(newE, eTpe, eUninit = false, eNullable = false, nullableSels.isUninit, nullableSels.isNullable)
           }
           /*
           val eTpe = e.getType(using tc.symbols)
@@ -507,9 +502,10 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       }
     }
 
+    def optionTpe(tpe: Type): Type = ClassType(tc.optionMutDefs.option.id, Seq(tpe))
     def none(tpe: Type): Expr = ClassConstructor(ClassType(tc.optionMutDefs.none.id, Seq(tpe)), Seq.empty)
-    def some(e: Expr, tpe: Type): Expr = ClassConstructor(ClassType(tc.optionMutDefs.some.id, Seq(tpe)), Seq(e))
-    def get(e: Expr): Expr = MethodInvocation(e, tc.optionMutDefs.get.id, Seq.empty, Seq.empty)
+    def some(e: Expr, tpe: Type): Expr = ClassConstructor(ClassType(tc.optionMutDefs.some.id, Seq(tpe)), Seq(e)).copiedFrom(e)
+    def get(e: Expr): Expr = MethodInvocation(e, tc.optionMutDefs.get.id, Seq.empty, Seq.empty).copiedFrom(e)
 
     def adaptVariableType(vtpe: Type, fullyInit: Boolean, nullable: Boolean): Type = {
       val tpe2 = {
@@ -529,12 +525,19 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     }
 
     def letCase(vd: ValDef, e: Expr, body: Expr, env: Env)(mkLet: (ValDef, Expr, Expr) => Expr): Expr = {
+      // Note: if we declare a var set to null for a class known for having uninit fields,
+      // we cannot know by just looking at the null whether we should go for the uninit construction
+      // or the original one (both cases wrapped in an OptionMut of course)
+      // Therefore, we look at the assignment usage to determine the usage
+      // TODO: Do it
+      // TODO: What about aliasing, field/array assignment and so on?
       val eNullableSels = widenedNullableSelection(e, env)
       val (eCtx, eNewTpe) = {
         if (eNullableSels.isEmpty) (CtxKind.Pure, vd.tpe)
         else {
-          val eNewTpe = adaptType(vd.tpe)
-          (CtxKind.Impure(eNullableSels, eNewTpe), eNewTpe)
+          val eNewTpe1 = if (eNullableSels.isUninit) toUninitType(vd.tpe) else vd.tpe
+          val eNewTpe2 = if (eNullableSels.isNullable) optionTpe(eNewTpe1) else eNewTpe1
+          (CtxKind.Impure(eNullableSels, eNewTpe2), eNewTpe2)
         }
       }
       val eRec = transform(e, env.copy(ctxKind = eCtx))
@@ -1010,7 +1013,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     case class Env(currSels: Selections,
                    bdgsSels: Map[Variable, Selections],
                    bdgsNullable: Map[Variable, NullableSelections]) {
-      def resetSelectionCtx: Env = copy(currSels = Selections.empty) // TODO: Or withEmptyPath?
+      // We use withEmptyPath and not empty because adding selections to "empty" does not do anything
+      def resetSelectionCtx: Env = copy(currSels = Selections.withEmptyPath)
 
       def :+(fld: Identifier): Env = copy(currSels = currSels :+ fld)
 
@@ -1020,7 +1024,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
         Env(currSels, bdgsSels + (kv._1 -> kv._2._1), bdgsNullable + (kv._1 -> kv._2._2))
     }
     object Env {
-      def init: Env = Env(Selections.empty, Map.empty, Map.empty) // TODO: Or withEmptyPath?
+      def init: Env = Env(Selections.withEmptyPath, Map.empty, Map.empty)
     }
 
     var classesNullableSelections: Map[Identifier, NullableSelections] =
@@ -1038,7 +1042,9 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       for ((_, cd) <- symbols.classes) {
         val currNullable = classesNullableSelections(cd.id)
         val newNullable = cd.fields.foldLeft(currNullable) {
-          case (acc, fld) => acc union NullableSelections(selsPerField.getOrElse(fld.id, Selections.empty))
+          case (acc, fld) =>
+            val fldSels = selsPerField.get(fld.id).map(fld.id :: _).getOrElse(Selections.empty)
+            acc union NullableSelections(fldSels)
         }
         classesNullableSelections = classesNullableSelections.updated(cd.id, newNullable)
       }
@@ -1316,6 +1322,8 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     def filter(prefix: Selection): NullableSelections = NullableSelections(sels filter prefix)
 
     def filter(prefix: Identifier): NullableSelections = this filter Selection.Field(prefix)
+
+    def withoutNullable: NullableSelections = NullableSelections(Selections(sels.sels - PathSelection.empty))
   }
   object NullableSelections {
     def empty: NullableSelections = NullableSelections(Selections.empty)
@@ -1376,12 +1384,14 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
   }
 
   private def activeSelections(e: Expr, bdgs: Map[Variable, Selections]): Selections = {
+    // Note: we use withEmptyPath because adding Selection to "empty" still results in empty
+
     def goBranches(branches: Seq[Expr], bdgs: Map[Variable, Selections]): Selections =
-      branches.foldLeft(Selections.empty)(_ union go(_, bdgs))
-    // TODO: empty or withEmptyPath?
+      branches.foldLeft(Selections.withEmptyPath)(_ union go(_, bdgs))
+
     def go(e: Expr, bdgs: Map[Variable, Selections]): Selections = e match {
       case v: Variable =>
-        bdgs.getOrElse(v, Selections.empty)
+        bdgs.getOrElse(v, Selections.withEmptyPath)
       case ArraySelect(arr, _) =>
         go(arr, bdgs) :+ Selection.Array
       case ClassSelector(recv, selector) =>
@@ -1403,7 +1413,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       case Decreases(_, body) => go(body, bdgs)
       case Require(_, body) => go(body, bdgs)
       case Ensuring(body, _) => go(body, bdgs)
-      case _ => Selections.empty
+      case _ => Selections.withEmptyPath
     }
     go(e, bdgs)
   }
