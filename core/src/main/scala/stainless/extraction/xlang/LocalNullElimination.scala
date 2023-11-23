@@ -187,17 +187,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             case None =>
               adaptExpression(v, v.tpe, eUninit = false, eNullable = false, resUninit, resNullable)
           }
-          /*
-          val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
-          env.bdgs.get(v) match {
-            case Some(BdgInfo(ExprInfo(_, vFullyInit, vNullable), vNewTpe)) =>
-              val v2 = v.copy(tpe = vNewTpe)
-              adaptExpression(v2, eOrigTpe = v.tpe, eNewTpe = vNewTpe, vFullyInit, vNullable, resFullyInit, resNullable)
-            case None =>
-              // TODO: Nope pour le type, car si v est un parameter et que l'on doit faire toUninit (p.ex. if (b) v else uninitExpr), on a besoin du nouveau type!!!
-              adaptExpression(v, v.tpe, v.tpe, true, false, resFullyInit, resNullable)
-          }
-          */
+
         case Let(vd, ee, body) => letCase(vd, ee, body, env)(Let.apply).copiedFrom(e)
         case LetVar(vd, ee, body) => letCase(vd, ee, body, env)(LetVar.apply).copiedFrom(e)
 
@@ -275,49 +265,7 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           }
           if (env.nullableSelsOrEmpty.isNullable) some(newExpr, newTpe)
           else newExpr
-          // TODO: Ah bon, et si on a qqchose comme:
-          //   CUninit(uninitExpr)
-          //  comme returned expression, on doit appeler toInit bien que l'on utilise la variant uninit!!!
-          // adaptExpression(e1, eOrigTpe = ct, eNewTpe = tpe1, eUninit = useUninit, eNullable = false, resUninit = useUninit, resNullable = env.nullableSelsOrEmpty.isNullable)
 
-          /*
-          val fieldsOrig = tc.symbols.getClass(ct.id).fields
-          val (argsEnv, useUninit) = tc.uninitClasses.init2cd.get(ct.id) match {
-            case Some(uninitCd) =>
-              assert(ct.tps.isEmpty)
-              val useUninit = mustUseUninit(args, env)
-              val fieldsInfo = tc.classesConsInfo(ct.id).fields
-
-              val argsEnv = fieldsOrig.zipWithIndex.map { case (field, fieldIx) =>
-                val fieldInfo = fieldsInfo(field.id)
-                val ctxKind = CtxKind.ConstructionOrBinding(
-                  // TODO: Upd comment
-                  // If all argument are fully initialized, then so is this one
-                  // However, if there is one uninit argument, this argument is uninit as well if
-                  // its corresponding field is uninit, otherwise we proceed to a fully initialized construction
-                  !useUninit || fieldInfo.fullyInit,
-                  // Ditto for nullable
-                  useUninit && fieldInfo.nullable,
-                  uninitCd.cd.fields(fieldIx).tpe
-                )
-                Env(ctxKind, env.bdgs)
-              }
-              (argsEnv, useUninit)
-            case None =>
-              val argsEnv = fieldsOrig.map(field => Env(CtxKind.ConstructionOrBinding(fullyInit = true, nullable = false, expectedType = field.tpe), env.bdgs))
-              (argsEnv, false)
-          }
-          val recArgs = args.zip(argsEnv).map(transform(_, _))
-          val (e1, tpe1) = {
-            if (useUninit) {
-              assert(ct.tps.isEmpty)
-              val newCt = ClassType(tc.uninitClasses.init2cd(ct.id).cd.id, Seq.empty)
-              (ClassConstructor(newCt, recArgs), newCt)
-            } else (ClassConstructor(ct, recArgs), ct)
-          }
-          val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
-          adaptExpression(e1, eOrigTpe = ct, eNewTpe = tpe1, !useUninit, false, resFullyInit, resNullable)
-          */
         case ClassSelector(recv, selector) =>
           val origCls = fieldsOfClass(selector)
           val origCd = tc.symbols.getClass(origCls)
@@ -337,23 +285,6 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           adaptExpression(newExpr, origTpe,
             eUninit = selNullableSels.isUninit, eNullable = selNullableSels.isNullable,
             resUninit = env.nullableSelsOrEmpty.isUninit, resNullable = env.nullableSelsOrEmpty.isNullable)
-//          val recvRec = transform(recv, Env(CtxKind.FieldSelection(recvInfo.fullyInit), env.bdgs))
-//          val clsId = fieldsOfClass(selector)
-//          val origCd = tc.symbols.getClass(clsId)
-//          val origTpe = e.getType(using tc.symbols)
-//          val (e2, tpe2, selNullable, selFullyInit) = {
-//            if (recvInfo.fullyInit) (ClassSelector(recvRec, selector).copiedFrom(e), origTpe, false, true)
-//            else {
-//              assert(origCd.tparams.isEmpty)
-//              val uninitCd = tc.uninitClasses.init2cd(clsId).cd
-//              val selIx = origCd.fields.indexWhere(_.id == selector)
-//              val fieldInfo = tc.classesConsInfo(origCd.id).fields(selector)
-//              val newSel = uninitCd.fields(selIx)
-//              (ClassSelector(recvRec, newSel.id).copiedFrom(e), newSel.tpe, fieldInfo.nullable, fieldInfo.fullyInit)
-//            }
-//          }
-//          val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
-//          adaptExpression(e2, eOrigTpe = origTpe, eNewTpe = tpe2, selFullyInit, selNullable, resFullyInit, resNullable)
 
         case Assignment(v, value) =>
           val (ctxKind, newTpe) = env.bdgs.get(v) match {
@@ -363,16 +294,6 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           }
           val valueRec = transform(value, env.copy(ctxKind = ctxKind))
           Assignment(v.copy(tpe = newTpe), valueRec).copiedFrom(e)
-          /*
-          assert(env.ctxKind == CtxKind.Pure())
-          val (ctxKind, newTpe) = env.bdgs.get(v) match {
-            case Some(BdgInfo(ExprInfo(_, fullyInit, nullable), newTpe)) =>
-              (CtxKind.ConstructionOrBinding(fullyInit, nullable, v.tpe), newTpe)
-            case None => (CtxKind.ConstructionOrBinding(fullyInit = true, nullable = false, v.tpe), v.tpe)
-          }
-          val valueRec = transform(value, Env(ctxKind, env.bdgs))
-          Assignment(v.copy(tpe = newTpe), valueRec).copiedFrom(e)
-          */
 
         case fa @ FieldAssignment(recv, selector, value) =>
           val origCls = fieldsOfClass(selector)
@@ -396,29 +317,6 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           }
           val valRec = transform(value, env.copy(ctxKind = valCtx))
           FieldAssignment(recvRec, newSelector, valRec)
-          /*
-          assert(env.ctxKind == CtxKind.Pure())
-          val recvInfo = exprInfoOf(recv, env.bdgs.view.mapValues(_.info).toMap)
-          val recvRec = transform(recv, Env(CtxKind.FieldSelection(recvInfo.fullyInit), env.bdgs))
-          val clsId = fieldsOfClass(selector)
-          val origCd = tc.symbols.getClass(clsId)
-          val selTpe = fa.getField(using tc.symbols).get.tpe
-          val (selId, valueCtxKind) = {
-            if (recvInfo.fullyInit) {
-              // TODO: Test this
-              (selector, CtxKind.ConstructionOrBinding(fullyInit = true, nullable = false, expectedType = selTpe))
-            } else {
-              assert(origCd.tparams.isEmpty)
-              val uninitCd = tc.uninitClasses.init2cd(clsId).cd
-              val selIx = origCd.fields.indexWhere(_.id == selector)
-              val fieldInfo = tc.classesConsInfo(clsId).fields(selector)
-              val newSel = uninitCd.fields(selIx)
-              (newSel.id, CtxKind.ConstructionOrBinding(fieldInfo.fullyInit, fieldInfo.nullable, newSel.tpe))
-            }
-          }
-          val valueRec = transform(value, Env(valueCtxKind, env.bdgs))
-          FieldAssignment(recvRec, selId, valueRec).copiedFrom(e)
-          */
 
         case IfExpr(cond, thenn, elze) =>
           val condRec = transform(cond, env.withPureCtx)
@@ -481,24 +379,6 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
             case CtxKind.Impure(nullableSels, _) =>
               adaptExpression(newE, eTpe, eUninit = false, eNullable = false, nullableSels.isUninit, nullableSels.isNullable)
           }
-          /*
-          val eTpe = e.getType(using tc.symbols)
-          val esRec = es.map(transform(_, env.withPureCtx))
-          val e2 = recons(esRec).copiedFrom(e)
-          // TODO: Use adaptExpression?
-          val (resFullyInit, resNullable) = env.ctxKind.fullyInitAndNullable
-          val (e3, e3Tpe) = {
-            if (resFullyInit) (e2, eTpe)
-            else {
-              val ClassType(clsId, clsTps) = getAsClassType(eTpe) // TODO: Nope
-              assert(clsTps.isEmpty)
-              val uninitCd = tc.uninitClasses.init2cd(clsId)
-              // TODO: May need cast (non-sealed)
-              (FunctionInvocation(uninitCd.fromInitId, clsTps, Seq(e2)).copiedFrom(e), ClassType(uninitCd.cd.id, clsTps))
-            }
-          }
-          if (resNullable) some(e3, e3Tpe) else e3
-          */
       }
     }
 
@@ -1029,13 +909,6 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
 
     var classesNullableSelections: Map[Identifier, NullableSelections] =
       symbols.classes.keySet.map(_ -> NullableSelections.empty).toMap
-    /*
-    val fieldsOfClass: Map[Identifier, Identifier] = {
-      symbols.classes.flatMap { case (clsId, cd) =>
-        cd.fields.map(_.id -> clsId).toMap
-      }
-    }
-    */
 
     private def updateNullable(sels: Selections): Unit = {
       val selsPerField = sels.groupByField
