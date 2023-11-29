@@ -90,6 +90,11 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
       case Pure
     }
 
+    private def transformType(tpe: Type, nullableSels: NullableSelections): Type = {
+      val tpe1 = if (nullableSels.isUninit) toUninitType(tpe) else tpe
+      if (nullableSels.isNullable) optionTpe(tpe1) else tpe1
+    }
+
     private def toUninitType(tpe: Type): Type = {
       tpe match {
         case ClassType(clsId, clsTps) =>
@@ -330,11 +335,16 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
           Block(exprsRec, lastRec).copiedFrom(e)
 
         case MatchExpr(scrutinee, cases) =>
-          val scrutRec = transform(scrutinee, env.withPureCtx)
+          val (scrutCtxKind, scrutNullableSels, _) = impureAllowedCtx(scrutinee, env)
+          val scrutRec = transform(scrutinee, env.copy(ctxKind = scrutCtxKind))
           val casesRec = cases.map { cse =>
-            val guardRec = cse.optGuard.map(transform(_, env.withPureCtx))
-            val rhsRec = transform(cse.rhs, env)
-            MatchCase(cse.pattern, guardRec, rhsRec).copiedFrom(cse)
+            val (newPat, varSubsts) = transformPattern(cse.pattern, scrutNullableSels)
+            val patBdgs = varSubsts.map {
+              case (oldV, (newV, vNullableSels)) => oldV -> BdgInfo(vNullableSels, newV.tpe)
+            }
+            val guardRec = cse.optGuard.map(guard => transform(guard, env.copy(bdgs = env.bdgs ++ patBdgs).withPureCtx))
+            val rhsRec = transform(cse.rhs, env.copy(bdgs = env.bdgs ++ patBdgs))
+            MatchCase(newPat, guardRec, rhsRec).copiedFrom(cse)
           }
           MatchExpr(scrutRec, casesRec).copiedFrom(e)
 
@@ -387,39 +397,84 @@ class LocalNullElimination(override val s: Trees)(override val t: s.type)
     def some(e: Expr, tpe: Type): Expr = ClassConstructor(ClassType(tc.optionMutDefs.some.id, Seq(tpe)), Seq(e)).copiedFrom(e)
     def get(e: Expr): Expr = MethodInvocation(e, tc.optionMutDefs.get.id, Seq.empty, Seq.empty).copiedFrom(e)
 
-    def adaptVariableType(vtpe: Type, fullyInit: Boolean, nullable: Boolean): Type = {
-      val tpe2 = {
-        if (fullyInit) vtpe
-        else vtpe match {
-          case ClassType(clsId, clsTps) =>
-            assert(clsTps.isEmpty)
-            ClassType(tc.uninitClasses.init2cd(clsId).cd.id, clsTps)
-          // TODO: What about array of array of uninit???
-          case ArrayType(ClassType(clsId, clsTps)) =>
-            assert(clsTps.isEmpty)
-            ArrayType(ClassType(tc.uninitClasses.init2cd(clsId).cd.id, clsTps))
+    def transformPattern(pat: Pattern, scrutNullableSels: NullableSelections): (Pattern, Map[Variable, (Variable, NullableSelections)]) = {
+      if (scrutNullableSels.isEmpty) (pat, Map.empty)
+      else {
+        pat match {
+          case WildcardPattern(Some(binder0)) =>
+            val newTpe = transformType(binder0.tpe, scrutNullableSels)
+            val binder1 = binder0.copy(tpe = newTpe)
+            (WildcardPattern(Some(binder1)).copiedFrom(pat), Map(binder0.toVariable -> (binder1.toVariable, scrutNullableSels)))
+
+          case WildcardPattern(None) => (pat, Map.empty)
+
+          case InstanceOfPattern(binder0, tpe) =>
+            // TODO: Ici, la branche n'est prise que si non-null!
+            val transformedTpe = transformType(tpe, scrutNullableSels)
+            if (scrutNullableSels.isNullable) {
+              val optTpe = getAsClassType(transformedTpe)
+              assert(optTpe.id == tc.optionMutDefs.option.id && optTpe.tps.size == 1)
+              val underlyingTpe = optTpe.tps.head
+              val binder1 = binder0.map(_.copy(tpe = underlyingTpe))
+              // Note: since we "unwrap" with SomeMut, the binder is non-nullable, so we remove it from scrutNullableSels
+              val varSubsts = binder0.map(_.toVariable -> (binder1.get.toVariable, scrutNullableSels.withoutNullable)).toMap
+              val newPat = InstanceOfPattern(binder1, underlyingTpe).copiedFrom(pat)
+              val wrappedPat = ClassPattern(None, ClassType(tc.optionMutDefs.some.id, Seq(underlyingTpe)), Seq(newPat)).copiedFrom(pat)
+              (wrappedPat, varSubsts)
+            } else {
+              val binder1 = binder0.map(_.copy(tpe = transformedTpe))
+              val varSubsts = binder0.map(_.toVariable -> (binder1.get.toVariable, scrutNullableSels)).toMap
+              (InstanceOfPattern(binder1, transformedTpe).copiedFrom(pat), varSubsts)
+            }
+
+          case ClassPattern(binder0, tpe, subPatterns) =>
+            // TODO: Ici, la branche n'est prise que si non-null!
+            val transformedTpe = transformType(tpe, scrutNullableSels)
+            val fields = tc.symbols.classes(tpe.id).fields
+            assert(fields.size == subPatterns.size)
+            val (recSubPatts, recVarSubsts0) = subPatterns.zip(fields).map { case (subPat, fld) =>
+              transformPattern(subPat, scrutNullableSels.filter(fld.id))
+            }.unzip
+            val recVarSubst = recVarSubsts0.flatten.toMap
+            if (scrutNullableSels.isNullable) {
+              val optTpe = getAsClassType(transformedTpe)
+              assert(optTpe.id == tc.optionMutDefs.option.id && optTpe.tps.size == 1)
+              val underlyingTpe = getAsClassType(optTpe.tps.head)
+              val binder1 = binder0.map(_.copy(tpe = underlyingTpe))
+              val varSubsts = binder0.map(_.toVariable -> (binder1.get.toVariable, scrutNullableSels.withoutNullable)).toMap
+              val newPat = ClassPattern(binder1, underlyingTpe, recSubPatts).copiedFrom(pat)
+              val wrappedPat = ClassPattern(None, ClassType(tc.optionMutDefs.some.id, Seq(underlyingTpe)), Seq(newPat)).copiedFrom(pat)
+              (wrappedPat, varSubsts)
+            } else {
+              val binder1 = binder0.map(_.copy(tpe = transformedTpe))
+              val varSubsts = binder0.map(_.toVariable -> (binder1.get.toVariable, scrutNullableSels)).toMap
+              (ClassPattern(binder1, getAsClassType(transformedTpe), recSubPatts).copiedFrom(pat), recVarSubst ++ varSubsts)
+            }
+
+          case other => sys.error(s"Unsupported pattern in presence of nulls: $other")
         }
       }
-      if (!nullable) tpe2
-      else ClassType(tc.optionMutDefs.option.id, Seq(tpe2))
+    }
+
+    def impureAllowedCtx(e: Expr, env: Env): (CtxKind, NullableSelections, Type) = {
+      val eNullableSels = widenedNullableSelection(e, env)
+      // TODO: What if there is a null in e? This will return a NothingType!
+      val eTpe = e.getType
+      if (eNullableSels.isEmpty) (CtxKind.Pure, eNullableSels, eTpe)
+      else {
+        val eNewTpe = transformType(eTpe, eNullableSels)
+        (CtxKind.Impure(eNullableSels, eNewTpe), eNullableSels, eNewTpe)
+      }
     }
 
     def letCase(vd: ValDef, e: Expr, body: Expr, env: Env)(mkLet: (ValDef, Expr, Expr) => Expr): Expr = {
-      // Note: if we declare a var set to null for a class known for having uninit fields,
-      // we cannot know by just looking at the null whether we should go for the uninit construction
-      // or the original one (both cases wrapped in an OptionMut of course)
-      // Therefore, we look at the assignment usage to determine the usage
-      // TODO: Do it
+      // TODO: if we declare a var set to null for a class known for having uninit fields,
+      //  we cannot know by just looking at the null whether we should go for the uninit construction
+      //  or the original one (both cases wrapped in an OptionMut of course)
+      //  Therefore, we look at the assignment usage to determine the usage
+      // TODO: Actually no, because will be rejected by EffectsChecker anyway
       // TODO: What about aliasing, field/array assignment and so on?
-      val eNullableSels = widenedNullableSelection(e, env)
-      val (eCtx, eNewTpe) = {
-        if (eNullableSels.isEmpty) (CtxKind.Pure, vd.tpe)
-        else {
-          val eNewTpe1 = if (eNullableSels.isUninit) toUninitType(vd.tpe) else vd.tpe
-          val eNewTpe2 = if (eNullableSels.isNullable) optionTpe(eNewTpe1) else eNewTpe1
-          (CtxKind.Impure(eNullableSels, eNewTpe2), eNewTpe2)
-        }
-      }
+      val (eCtx, eNullableSels, eNewTpe) = impureAllowedCtx(e, env)
       val eRec = transform(e, env.copy(ctxKind = eCtx))
       val bodyEnv = env.copy(bdgs = env.bdgs + (vd.toVariable -> BdgInfo(eNullableSels, eNewTpe)))
       val bodyRec = transform(body, bodyEnv)
