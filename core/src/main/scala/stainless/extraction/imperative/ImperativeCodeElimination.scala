@@ -384,6 +384,21 @@ class ImperativeCodeElimination(override val s: Trees)(override val t: s.type)
           val scope = (body: Expr) => condScope(Assume(condVal, replaceFromSymbols(condFun, bodyScope(body))).copiedFrom(a))
           (bodyRes, scope, condFun ++ bodyFun)
 
+        case FieldAssignment(_, _, _) =>
+          sys.error("FieldAssignment should have been eliminated by AntiAliasing")
+
+        case Swap(_, _, _, _) =>
+          sys.error("Array swap should have been eliminated by AntiAliasing")
+
+        case CellSwap(_, _) =>
+          sys.error("Cell swap should have been eliminated by AntiAliasing")
+
+        case ArrayUpdate(_, _, _) =>
+          sys.error("In-place array update should have been eliminated by AntiAliasing")
+
+        case MutableMapUpdate(_, _, _) =>
+          sys.error("In-place map update should have been eliminated by AntiAliasing")
+
         case n @ Operator(args, recons) =>
           foldArguments(args)(recons(_).setPos(n))
       }): @unchecked
@@ -415,12 +430,12 @@ class ImperativeCodeElimination(override val s: Trees)(override val t: s.type)
     }
 
     def requireRewriting(expr: Expr) = expr match {
-      case (e: Block) => true
-      case (e: Assignment) => true
-      case (e: LetVar) => true
-      case (e: Old) => true
-      case (e: Snapshot) => true
-      case (e: FreshCopy) => true
+      case _: Block => true
+      case _: Assignment => true
+      case _: LetVar => true
+      case _: Old => true
+      case _: Snapshot => true
+      case _: FreshCopy => true
       case _ => false
     }
 

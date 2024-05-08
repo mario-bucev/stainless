@@ -267,7 +267,7 @@ trait Expressions extends inox.ast.Expressions with Types { self: Trees =>
 
   /** $encodingof `array.length` */
   sealed case class ArrayLength(array: Expr) extends Expr with CachingTyped {
-    override protected def computeType(using s: Symbols): Type = array.getType match {
+    override protected def computeType(using s: Symbols): Type = array.getType.getType match {
       case ArrayType(_) => Int32Type()
       case _ => Untyped
     }

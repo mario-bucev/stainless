@@ -118,7 +118,7 @@ package object lang {
 
   /** @note for internal and testing use only */
   @ignore
-  def freshCopy[T](value: T): T = (??? : T)
+  def freshCopy[T](value: T): T = value
 
   @library
   @partialEval
