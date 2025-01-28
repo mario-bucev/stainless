@@ -1,0 +1,18 @@
+7:5;abs;precondition;valid
+7:5;abs;precondition;valid
+7:5;absWhile;postcondition;valid
+7:5;absWhile;postcondition;valid
+7:5;absWhile;postcondition;valid
+7:5;absWhile;postcondition;valid
+7:5;absWhile;precondition;valid
+7:5;absWhile;precondition;valid
+8:17;absWhile;non-negative measure;valid
+9:9;absWhile;array index within bounds;valid
+9:20;absWhile;array index within bounds;valid
+9:31;absWhile;array index within bounds;valid
+9:41;absWhile;array index within bounds;valid
+18:5;main;precondition;valid
+20:7;main;array index within bounds;valid
+20:14;main;array index within bounds;valid
+20:25;main;array index within bounds;valid
+20:36;main;array index within bounds;valid

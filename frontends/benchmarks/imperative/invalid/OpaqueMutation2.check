@@ -1,0 +1,3 @@
+20:9;increment;body assertion: Inlined precondition of check;valid
+20:9;increment;postcondition;valid
+31:12;test;body assertion;invalid

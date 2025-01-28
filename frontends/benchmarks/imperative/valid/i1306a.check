@@ -1,0 +1,10 @@
+10:5;root;precondition;valid
+10:5;root;precondition;valid
+10:5;rootWhile;postcondition;valid
+10:5;rootWhile;postcondition;valid
+10:5;rootWhile;postcondition;valid
+10:5;rootWhile;postcondition;valid
+10:5;rootWhile;precondition;valid
+10:5;rootWhile;precondition;valid
+11:21;rootWhile;non-negative measure;valid
+14:5;root;postcondition;valid

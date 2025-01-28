@@ -1,0 +1,12 @@
+7:11;multipleArgs;array index within bounds;valid
+8:10;multipleArgs;array index within bounds;valid
+10:10;multipleArgs;array index within bounds;valid
+10:18;multipleArgs;array index within bounds;valid
+15:5;transitiveEffects;postcondition;valid
+15:5;transitiveEffects;precondition;valid
+16:21;transitiveEffects;array index within bounds;valid
+16:30;transitiveEffects;array index within bounds;valid
+20:5;transitiveReverseEffects;postcondition;valid
+20:5;transitiveReverseEffects;precondition;valid
+21:21;transitiveReverseEffects;array index within bounds;valid
+21:30;transitiveReverseEffects;array index within bounds;valid

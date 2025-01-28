@@ -1,0 +1,60 @@
+35:12;hhhh1;body assertion;valid
+37:12;hhhh1;body assertion;valid
+38:12;hhhh1;body assertion;valid
+39:12;hhhh1;body assertion;valid
+41:12;hhhh1;body assertion;valid
+42:12;hhhh1;body assertion;valid
+43:12;hhhh1;body assertion;valid
+45:12;hhhh1;body assertion;valid
+46:12;hhhh1;body assertion;valid
+46:93;hhhh1;array index within bounds;valid
+46:93;hhhh1;array index within bounds;valid
+46:93;hhhh1;array index within bounds;valid
+46:93;hhhh1;array index within bounds;valid
+46:93;hhhh1;array index within bounds;valid
+46:93;hhhh1;array index within bounds;valid
+46:93;hhhh1;array index within bounds;valid
+49:12;hhhh1;body assertion;valid
+49:37;hhhh1;array index within bounds;valid
+49:37;hhhh1;array index within bounds;valid
+49:37;hhhh1;array index within bounds;valid
+49:37;hhhh1;array index within bounds;valid
+49:37;hhhh1;array index within bounds;valid
+49:37;hhhh1;array index within bounds;valid
+49:37;hhhh1;array index within bounds;valid
+49:37;hhhh1;array index within bounds;valid
+49:37;hhhh1;array index within bounds;valid
+65:12;h2Replace;body assertion;valid
+66:12;h2Replace;body assertion;valid
+67:12;h2Replace;body assertion;valid
+68:12;h2Replace;body assertion;valid
+68:54;h2Replace;array index within bounds;valid
+68:54;h2Replace;array index within bounds;valid
+68:54;h2Replace;array index within bounds;valid
+68:54;h2Replace;array index within bounds;valid
+68:54;h2Replace;array index within bounds;valid
+68:54;h2Replace;array index within bounds;valid
+69:12;h2Replace;body assertion;valid
+69:28;h2Replace;array index within bounds;valid
+69:28;h2Replace;array index within bounds;valid
+69:28;h2Replace;array index within bounds;valid
+69:28;h2Replace;array index within bounds;valid
+69:28;h2Replace;array index within bounds;valid
+69:28;h2Replace;array index within bounds;valid
+85:12;h2Modify;body assertion;valid
+86:12;h2Modify;body assertion;valid
+87:12;h2Modify;body assertion;valid
+88:12;h2Modify;body assertion;valid
+88:54;h2Modify;array index within bounds;valid
+88:54;h2Modify;array index within bounds;valid
+88:54;h2Modify;array index within bounds;valid
+88:54;h2Modify;array index within bounds;valid
+88:54;h2Modify;array index within bounds;valid
+88:54;h2Modify;array index within bounds;valid
+89:12;h2Modify;body assertion;valid
+89:28;h2Modify;array index within bounds;valid
+89:28;h2Modify;array index within bounds;valid
+89:28;h2Modify;array index within bounds;valid
+89:28;h2Modify;array index within bounds;valid
+89:28;h2Modify;array index within bounds;valid
+89:28;h2Modify;array index within bounds;valid

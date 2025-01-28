@@ -1,0 +1,7 @@
+10:29;upd;array index within bounds;valid
+16:21;app;precondition;valid
+19:19;app;postcondition;valid
+21:27;app;precondition;valid
+22:9;app;postcondition;valid
+22:9;app;precondition;valid
+24:22;app;non-negative measure;valid

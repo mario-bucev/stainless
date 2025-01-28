@@ -1,0 +1,7 @@
+4:7;f;body assertion: Inner refinement lifting;valid
+4:7;f;postcondition;valid
+4:7;f;precondition;valid
+6:7;g;body assertion: Inner refinement lifting;valid
+6:7;g;postcondition;valid
+6:7;g;precondition;valid
+9:12;g;body assertion;invalid

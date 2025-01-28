@@ -1,0 +1,10 @@
+5:7;foo;array index within bounds;valid
+6:5;foo;postcondition;valid
+6:7;foo;array index within bounds;valid
+11:32;test;body assertion: Non-negative array size;valid
+11:47;test;body assertion: Non-negative array size;valid
+12:5;test;precondition;valid
+12:11;test;array index within bounds;valid
+13:5;test;postcondition;valid
+13:7;test;array index within bounds;valid
+13:10;test;array index within bounds;valid

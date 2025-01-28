@@ -1,0 +1,6 @@
+14:17;rec;non-negative measure;valid
+17:9;rec;precondition;valid
+21:20;rec;postcondition;valid
+21:20;rec;postcondition;valid
+22:5;counterN;precondition;valid
+24:5;counterN;postcondition;valid

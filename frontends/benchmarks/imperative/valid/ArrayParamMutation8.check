@@ -1,0 +1,30 @@
+8:31;odd;array index within bounds;valid
+9:17;odd;array index within bounds;valid
+10:10;odd;array index within bounds;valid
+12:9;odd;array index within bounds;valid
+12:16;odd;array index within bounds;valid
+13:7;odd;precondition;valid
+15:13;odd;postcondition;valid
+15:13;odd;postcondition;valid
+15:27;odd;non-negative measure;valid
+15:30;odd;array index within bounds;valid
+15:30;odd;array index within bounds;valid
+15:35;odd;remainder by zero;valid
+15:35;odd;remainder by zero;valid
+15:52;odd;postcondition;valid
+15:52;odd;postcondition;valid
+18:31;even;array index within bounds;valid
+19:17;even;array index within bounds;valid
+20:10;even;array index within bounds;valid
+22:9;even;array index within bounds;valid
+22:16;even;array index within bounds;valid
+23:7;even;precondition;valid
+25:13;even;postcondition;valid
+25:13;even;postcondition;valid
+25:27;even;non-negative measure;valid
+25:30;even;array index within bounds;valid
+25:30;even;array index within bounds;valid
+25:35;even;remainder by zero;valid
+25:35;even;remainder by zero;valid
+25:52;even;postcondition;valid
+25:52;even;postcondition;valid

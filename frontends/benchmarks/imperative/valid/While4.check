@@ -1,0 +1,22 @@
+18:5;insert;precondition;valid
+18:5;insert;precondition;valid
+18:5;insertWhile;postcondition;valid
+18:5;insertWhile;postcondition;valid
+18:5;insertWhile;postcondition;valid
+18:5;insertWhile;postcondition;valid
+18:5;insertWhile;precondition;valid
+18:5;insertWhile;precondition;valid
+19:17;insertWhile;non-negative measure;valid
+23:32;insertWhile;array index within bounds;valid
+32:5;insert;precondition;valid
+32:5;insert;precondition;valid
+32:5;insertWhile;postcondition;valid
+32:5;insertWhile;postcondition;valid
+32:5;insertWhile;postcondition;valid
+32:5;insertWhile;postcondition;valid
+32:5;insertWhile;precondition;valid
+32:5;insertWhile;precondition;valid
+34:13;insertWhile;array index within bounds;valid
+34:18;insertWhile;class invariant: inv;valid
+34:24;insertWhile;array index within bounds;valid
+36:34;insertWhile;non-negative measure;valid

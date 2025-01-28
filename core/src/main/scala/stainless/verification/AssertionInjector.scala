@@ -77,7 +77,7 @@ class AssertionInjector(override val s: ast.Trees, override val t: ast.Trees, va
       val recDefault = transform(default)
       bindIfCannotDuplicate(size, "sz") { sz =>
         t.Assert(
-          t.GreaterEquals(sz, t.Int32Literal(0)),
+          t.GreaterEquals(sz, t.Int32Literal(0)).copiedFrom(e),
           Some("Non-negative array size"),
           t.LargeArray(recElems, recDefault, sz, transform(base)).copiedFrom(e)
         ).copiedFrom(e)

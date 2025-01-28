@@ -1,0 +1,11 @@
+20:5;propertyAfterSwap;postcondition;valid
+20:41;propertyAfterSwap;array index within bounds;valid
+20:41;propertyAfterSwap;array index within bounds;valid
+20:46;propertyAfterSwap;array index within bounds;valid
+20:46;propertyAfterSwap;array index within bounds;valid
+29:5;checkSwap;precondition;valid
+31:13;checkSwap;array index within bounds;valid
+31:13;checkSwap;array index within bounds;valid
+31:19;checkSwap;array index within bounds;valid
+31:19;checkSwap;array index within bounds;valid
+33:12;checkSwap;body assertion;valid

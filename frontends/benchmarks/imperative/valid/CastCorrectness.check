@@ -1,0 +1,16 @@
+18:5;contents;body assertion: match exhaustiveness;valid
+18:5;contents;cast correctness;valid
+18:5;contents;cast correctness;valid
+18:5;contents;non-negative measure;valid
+26:5;remove;body assertion: match exhaustiveness;valid
+26:5;remove;postcondition;valid
+27:31;remove;postcondition;valid
+28:55;remove;postcondition;valid
+29:42;remove;postcondition;valid
+34:62;remove;cast correctness;valid
+34:62;remove;cast correctness;valid
+34:62;remove;cast correctness;valid
+34:62;remove;cast correctness;valid
+34:62;remove;cast correctness;valid
+34:62;remove;cast correctness;valid
+44:11;removeFromList;body assertion: still contained;valid

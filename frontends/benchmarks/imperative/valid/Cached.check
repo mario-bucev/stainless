@@ -1,0 +1,7 @@
+8:7;inv;body assertion: match exhaustiveness;valid
+16:15;insert;class invariant: inv;valid
+22:7;apply;body assertion: match exhaustiveness;valid
+22:7;apply;postcondition;valid
+24:24;apply;postcondition;valid
+25:16;apply;postcondition;valid
+26:24;apply;postcondition;valid

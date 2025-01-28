@@ -1,0 +1,5 @@
+14:17;iter;non-negative measure;valid
+18:9;iter;precondition;valid
+20:20;iter;postcondition;valid
+22:5;sum;precondition;valid
+23:5;sum;postcondition;valid

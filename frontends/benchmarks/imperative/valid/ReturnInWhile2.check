@@ -1,0 +1,44 @@
+7:5;return10;precondition;valid
+7:5;return10While;body assertion: match exhaustiveness;valid
+7:5;return10While;body assertion: match exhaustiveness;valid
+7:5;return10While;body assertion: match exhaustiveness;valid
+7:5;return10While;body assertion: match exhaustiveness;valid
+7:5;return10While;body assertion: match exhaustiveness;valid
+7:5;return10While;postcondition;valid
+7:5;return10While;postcondition;valid
+7:5;return10While;postcondition;valid
+7:5;return10While;postcondition;valid
+7:5;return10While;postcondition;valid
+7:5;return10While;postcondition;valid
+7:5;return10While;postcondition;valid
+7:5;return10While;postcondition;valid
+7:5;return10While;precondition;valid
+7:12;return10While;postcondition;valid
+7:12;return10While;postcondition;valid
+7:12;return10While;postcondition;valid
+7:12;return10While;postcondition;valid
+8:17;return10While;non-negative measure;valid
+12:5;return10;body assertion;valid
+12:5;return10;body assertion: match exhaustiveness;valid
+18:5;return20While;body assertion: match exhaustiveness;valid
+18:5;return20While;body assertion: match exhaustiveness;valid
+18:5;return20While;body assertion: match exhaustiveness;valid
+18:5;return20While;body assertion: match exhaustiveness;valid
+18:5;return20While;body assertion: match exhaustiveness;valid
+18:5;return20While;postcondition;valid
+18:5;return20While;postcondition;valid
+18:5;return20While;postcondition;valid
+18:5;return20While;postcondition;valid
+18:5;return20While;postcondition;valid
+18:5;return20While;postcondition;valid
+18:5;return20While;postcondition;valid
+18:5;return20While;postcondition;valid
+18:12;return20While;postcondition;valid
+18:12;return20While;postcondition;valid
+18:12;return20While;postcondition;valid
+18:12;return20While;postcondition;valid
+19:17;return20While;non-negative measure;valid
+24:5;return20;body assertion;valid
+24:5;return20;body assertion: match exhaustiveness;valid
+29:12;tests;body assertion;valid
+30:12;tests;body assertion;valid

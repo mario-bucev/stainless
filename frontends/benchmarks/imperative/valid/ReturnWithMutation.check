@@ -1,0 +1,5 @@
+5:9;increment;body assertion: match exhaustiveness;valid
+8:7;increment;body assertion: match exhaustiveness;valid
+21:12;test;body assertion;valid
+22:12;test;body assertion;valid
+23:12;test;body assertion;valid

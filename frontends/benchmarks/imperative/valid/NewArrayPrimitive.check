@@ -1,0 +1,15 @@
+4:15;test0;body assertion: Non-negative array size;valid
+6:14;test0;body assertion;valid
+6:18;test0;array index within bounds;valid
+12:15;test1;body assertion: Non-negative array size;valid
+14:14;test1;body assertion;valid
+14:18;test1;array index within bounds;valid
+20:15;test2;body assertion: Non-negative array size;valid
+22:14;test2;body assertion;valid
+22:18;test2;array index within bounds;valid
+28:15;test3;body assertion: Non-negative array size;valid
+30:14;test3;body assertion;valid
+30:18;test3;array index within bounds;valid
+36:15;test4;body assertion: Non-negative array size;valid
+38:14;test4;body assertion;valid
+38:18;test4;array index within bounds;valid

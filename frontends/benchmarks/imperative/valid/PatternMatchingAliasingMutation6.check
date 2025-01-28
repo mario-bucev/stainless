@@ -1,0 +1,10 @@
+18:11;foo;array index within bounds;valid
+18:11;foo;array index within bounds;valid
+18:11;foo;array index within bounds;valid
+18:11;foo;array index within bounds;valid
+18:11;foo;array index within bounds;valid
+18:11;foo;array index within bounds;valid
+18:11;foo;array index within bounds;valid
+18:11;foo;array index within bounds;valid
+23:5;foo;postcondition;valid
+23:11;foo;array index within bounds;valid

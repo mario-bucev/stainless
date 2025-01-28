@@ -1,0 +1,64 @@
+38:12;hhhh1;body assertion;valid
+40:12;hhhh1;body assertion;valid
+41:12;hhhh1;body assertion;valid
+42:12;hhhh1;body assertion;valid
+44:12;hhhh1;body assertion;valid
+45:12;hhhh1;body assertion;valid
+46:12;hhhh1;body assertion;valid
+48:12;hhhh1;body assertion;valid
+49:12;hhhh1;body assertion;valid
+49:93;hhhh1;array index within bounds;valid
+49:93;hhhh1;array index within bounds;valid
+49:93;hhhh1;array index within bounds;valid
+49:93;hhhh1;array index within bounds;valid
+49:93;hhhh1;array index within bounds;valid
+49:93;hhhh1;array index within bounds;valid
+49:93;hhhh1;array index within bounds;valid
+52:12;hhhh1;body assertion;valid
+52:37;hhhh1;array index within bounds;valid
+52:37;hhhh1;array index within bounds;valid
+52:37;hhhh1;array index within bounds;valid
+52:37;hhhh1;array index within bounds;valid
+52:37;hhhh1;array index within bounds;valid
+52:37;hhhh1;array index within bounds;valid
+52:37;hhhh1;array index within bounds;valid
+52:37;hhhh1;array index within bounds;valid
+52:37;hhhh1;array index within bounds;valid
+57:9;mutateArrReplace;array index within bounds;valid
+62:9;mutateArrModify;array index within bounds;valid
+76:5;h2Replace;precondition;valid
+78:12;h2Replace;body assertion;valid
+79:12;h2Replace;body assertion;valid
+80:12;h2Replace;body assertion;valid
+81:12;h2Replace;body assertion;valid
+81:54;h2Replace;array index within bounds;valid
+81:54;h2Replace;array index within bounds;valid
+81:54;h2Replace;array index within bounds;valid
+81:54;h2Replace;array index within bounds;valid
+81:54;h2Replace;array index within bounds;valid
+81:54;h2Replace;array index within bounds;valid
+82:12;h2Replace;body assertion;valid
+82:28;h2Replace;array index within bounds;valid
+82:28;h2Replace;array index within bounds;valid
+82:28;h2Replace;array index within bounds;valid
+82:28;h2Replace;array index within bounds;valid
+82:28;h2Replace;array index within bounds;valid
+82:28;h2Replace;array index within bounds;valid
+96:5;h2Modify;precondition;valid
+98:12;h2Modify;body assertion;valid
+99:12;h2Modify;body assertion;valid
+100:12;h2Modify;body assertion;valid
+101:12;h2Modify;body assertion;valid
+101:54;h2Modify;array index within bounds;valid
+101:54;h2Modify;array index within bounds;valid
+101:54;h2Modify;array index within bounds;valid
+101:54;h2Modify;array index within bounds;valid
+101:54;h2Modify;array index within bounds;valid
+101:54;h2Modify;array index within bounds;valid
+102:12;h2Modify;body assertion;valid
+102:28;h2Modify;array index within bounds;valid
+102:28;h2Modify;array index within bounds;valid
+102:28;h2Modify;array index within bounds;valid
+102:28;h2Modify;array index within bounds;valid
+102:28;h2Modify;array index within bounds;valid
+102:28;h2Modify;array index within bounds;valid

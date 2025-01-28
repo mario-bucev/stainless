@@ -1,0 +1,12 @@
+19:27;f;array index within bounds;valid
+19:27;f;array index within bounds;valid
+19:27;f;array index within bounds;valid
+20:9;f;array index within bounds;valid
+22:12;f;body assertion;valid
+25:9;f;array index within bounds;valid
+26:12;f;body assertion;valid
+37:27;g;array index within bounds;valid
+38:16;g;array index within bounds;valid
+40:12;g;body assertion;valid
+43:16;g;array index within bounds;valid
+44:12;g;body assertion;valid

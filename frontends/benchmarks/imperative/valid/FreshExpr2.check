@@ -1,0 +1,3 @@
+10:15;counting;non-negative measure;valid
+12:7;counting;precondition;valid
+14:15;counting;body assertion: Non-negative array size;valid

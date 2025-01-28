@@ -1,0 +1,3 @@
+9:61;map;body assertion: match exhaustiveness;valid
+28:5;test;body assertion: Inner refinement lifting;valid
+29:5;test;postcondition;valid

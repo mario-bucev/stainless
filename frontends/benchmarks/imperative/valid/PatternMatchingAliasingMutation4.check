@@ -1,0 +1,19 @@
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+9:29;rec;body assertion: match exhaustiveness;valid
+9:29;rec;postcondition;valid
+12:7;rec;postcondition;valid
+14:7;rec;postcondition;valid
+17:35;allZero;body assertion: match exhaustiveness;valid
+17:35;allZero;cast correctness;valid
+17:35;allZero;cast correctness;valid
+17:35;allZero;cast correctness;valid
+17:35;allZero;cast correctness;valid
+23:5;test;body assertion: Inner refinement lifting;valid
+24:9;test;body assertion: Inner refinement lifting;valid
+24:9;test;body assertion: Inner refinement lifting;valid
+25:5;test;postcondition;valid

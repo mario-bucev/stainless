@@ -1,0 +1,27 @@
+6:5;f;body assertion: match exhaustiveness;valid
+6:5;f;precondition;valid
+6:5;fWhile;body assertion: match exhaustiveness;valid
+6:5;fWhile;body assertion: match exhaustiveness;valid
+6:5;fWhile;body assertion: match exhaustiveness;valid
+6:5;fWhile;body assertion: match exhaustiveness;valid
+6:5;fWhile;body assertion: match exhaustiveness;valid
+6:5;fWhile;postcondition;valid
+6:5;fWhile;postcondition;valid
+6:5;fWhile;postcondition;valid
+6:5;fWhile;postcondition;valid
+6:5;fWhile;postcondition;valid
+6:5;fWhile;postcondition;valid
+6:5;fWhile;postcondition;valid
+6:5;fWhile;postcondition;valid
+6:5;fWhile;precondition;valid
+8:34;fWhile;division by zero;valid
+11:26;fWhile;postcondition;valid
+11:26;fWhile;postcondition;valid
+11:26;fWhile;postcondition;valid
+11:26;fWhile;postcondition;valid
+11:26;fWhile;postcondition;valid
+11:26;fWhile;postcondition;valid
+11:26;fWhile;postcondition;valid
+11:26;fWhile;postcondition;valid
+11:30;fWhile;division by zero;valid
+11:30;fWhile;non-negative measure;valid

@@ -1158,9 +1158,13 @@ trait ASTExtractors {
           Nil,
           Apply(ExSymbol("scala", "runtime", "Scala3RunTime$", "assertFailed"), args)
         ) =>
+          val falseLit = tpd.Literal(Constant(false))
+          // We need to set the span (the position) of this tree
+          // so that the extraction can correctly set the position
+          falseLit.span = tree.span
           args match {
-            case List(Literal(cnst: Constant)) => Some((tpd.Literal(Constant(false)), Some(cnst.stringValue), false))
-            case _ => Some((tpd.Literal(Constant(false)), None, false))
+            case List(Literal(cnst: Constant)) => Some((falseLit, Some(cnst.stringValue), false))
+            case _ => Some((falseLit, None, false))
           }
 
         case Apply(ExSymbol("scala", "Predef$", "assert"), Seq(body)) =>

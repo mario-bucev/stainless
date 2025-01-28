@@ -94,7 +94,7 @@ class RefinementLifting(override val s: Trees, override val t: Trees)
         case s.RefinementType(vd, pred) =>
           transform(s.and(
             isInstOf(expr, vd.tpe).copiedFrom(e),
-            s.exprOps.replaceFromSymbols(Map(vd -> asInstOf(expr, vd.tpe).copiedFrom(e)), pred)
+            s.exprOps.replaceFromSymbols(Map(vd -> asInstOf(expr, vd.tpe).copiedFrom(e)), pred.copiedFrom(e)).copiedFrom(e)
           ).copiedFrom(e))
 
         case _ => super.transform(e)
@@ -106,20 +106,22 @@ class RefinementLifting(override val s: Trees, override val t: Trees)
 
         case s.RefinementType(vd, pred) =>
           transform(s.Assert(
-            s.exprOps.freshenLocals(s.exprOps.replaceFromSymbols(Map(vd -> asInstOf(expr, vd.tpe).copiedFrom(e)), pred)),
+            s.exprOps.freshenLocals(s.exprOps.replaceFromSymbols(
+              Map(vd -> asInstOf(expr, vd.tpe).copiedFrom(e)),
+              pred.copiedFrom(e)
+            ).copiedFrom(e)),
             Some("Cast error"),
             asInstOf(expr, vd.tpe).copiedFrom(e)
           ).copiedFrom(e))
-
         case _ => super.transform(e)
       }
 
       case s.Let(vd, value, body) => liftRefinements(vd.tpe) match {
         case s.RefinementType(ivd, s.BooleanLiteral(true)) =>
-          transform(s.Let(vd.copy(tpe = ivd.tpe), value, body))
+          transform(s.Let(vd.copy(tpe = ivd.tpe).copiedFrom(e), value, body).copiedFrom(e))
 
         case s.RefinementType(ivd, pred) =>
-          val nvd = vd.copy(tpe = ivd.tpe)
+          val nvd = vd.copy(tpe = ivd.tpe).copiedFrom(e)
           val tmp = nvd.freshen
           val subst = Map(ivd -> tmp.toVariable)
 
@@ -127,10 +129,10 @@ class RefinementLifting(override val s: Trees, override val t: Trees)
             nvd,
             s.Let(tmp, value,
               s.Assert(
-                s.exprOps.freshenLocals(s.exprOps.replaceFromSymbols(subst, pred)),
+                s.exprOps.freshenLocals(s.exprOps.replaceFromSymbols(subst, pred.copiedFrom(e))).copiedFrom(e),
                 Some("Inner refinement lifting"),
                 tmp.toVariable,
-              ).copiedFrom(e)),
+              ).copiedFrom(e)).copiedFrom(e),
             body
           ).copiedFrom(e))
 
@@ -144,20 +146,20 @@ class RefinementLifting(override val s: Trees, override val t: Trees)
       case s.ApplyLetRec(id, tparams, tpe, tps, args) => liftRefinements(tpe) match {
         case s.RefinementType(vd, s.BooleanLiteral(true)) =>
           val ftTpe = vd.tpe.asInstanceOf[s.FunctionType]
-          transform(s.ApplyLetRec(id, tparams, ftTpe, tps, args))
+          transform(s.ApplyLetRec(id, tparams, ftTpe, tps, args).copiedFrom(e))
 
         case s.RefinementType(vd, pred) =>
           val params = args.zipWithIndex.map { case (arg, i) => s.ValDef.fresh(s"i$i", arg.getType) }
           val subst = Map(
             vd -> s.Lambda(
               params,
-              s.ApplyLetRec(id, tparams, vd.tpe.asInstanceOf[s.FunctionType], tps, params.map(_.toVariable))
+              s.ApplyLetRec(id, tparams, vd.tpe.asInstanceOf[s.FunctionType], tps, params.map(_.toVariable)).copiedFrom(e)
             )
           )
           transform(s.Assert(
-            s.exprOps.freshenLocals(s.exprOps.replaceFromSymbols(subst, pred)),
+            s.exprOps.freshenLocals(s.exprOps.replaceFromSymbols(subst, pred.copiedFrom(e))).copiedFrom(e),
             Some("Inner refinement lifting"),
-            s.ApplyLetRec(id, tparams, vd.tpe.asInstanceOf[s.FunctionType], tps, args)
+            s.ApplyLetRec(id, tparams, vd.tpe.asInstanceOf[s.FunctionType], tps, args).copiedFrom(e)
           ).copiedFrom(e))
 
         case _ => super.transform(e)

@@ -76,22 +76,22 @@ class ImperativeCodeElimination(override val s: Trees)(override val t: s.type)
           val (eRes, eScope, eFun) = toFunction(eExpr)
 
           val modifiedVars: Seq[Variable] = (tFun.keys ++ eFun.keys).toSet.intersect(varsInScope).toSeq
-          val res = ValDef.fresh("res", ite.getType)
+          val res = ValDef.fresh("res", ite.getType).setPos(ite)
           val freshVars = modifiedVars.map(_.freshen)
           val iteType = tupleTypeWrap(res.tpe +: freshVars.map(_.tpe))
 
-          val thenVal = tupleWrap(tRes +: modifiedVars.map(v => tFun.getOrElse(v, v)))
-          val elseVal = tupleWrap(eRes +: modifiedVars.map(v => eFun.getOrElse(v, v)))
+          val thenVal = tupleWrap(tRes +: modifiedVars.map(v => tFun.getOrElse(v, v))).copiedFrom(tExpr)
+          val elseVal = tupleWrap(eRes +: modifiedVars.map(v => eFun.getOrElse(v, v))).copiedFrom(eExpr)
           val iteExpr = IfExpr(cRes, replaceFromSymbols(cFun, tScope(thenVal)), replaceFromSymbols(cFun, eScope(elseVal))).copiedFrom(ite)
 
           val scope = (body: Expr) => {
-            val tupleVd = ValDef.fresh("t", iteType)
+            val tupleVd = ValDef.fresh("t", iteType).setPos(ite)
             cScope(Let(tupleVd, iteExpr, Let(
               res,
-              tupleSelect(tupleVd.toVariable, 1, modifiedVars.nonEmpty),
+              tupleSelect(tupleVd.toVariable, 1, modifiedVars.nonEmpty).setPos(ite),
               freshVars.zipWithIndex.foldLeft(body)((b, p) =>
-                Let(p._1.toVal, tupleSelect(tupleVd.toVariable, p._2 + 2, true), b)
-              ))
+                Let(p._1.toVal, tupleSelect(tupleVd.toVariable, p._2 + 2, true).setPos(p._1), b).setPos(p._1)
+              )).setPos(ite)
             ).copiedFrom(expr))
           }
 
@@ -108,7 +108,7 @@ class ImperativeCodeElimination(override val s: Trees)(override val t: s.type)
           val matchType = tupleTypeWrap(res.tpe +: freshVars.map(_.tpe))
 
           val csesVals = csesRes.zip(csesFun).map {
-            case (cRes, cFun) => tupleWrap(cRes +: modifiedVars.map(v => cFun.getOrElse(v, v)))
+            case (cRes, cFun) => tupleWrap(cRes +: modifiedVars.map(v => cFun.getOrElse(v, v))).setPos(cRes)
           }
 
           val newRhs = csesVals.zip(csesScope).map {
@@ -126,15 +126,15 @@ class ImperativeCodeElimination(override val s: Trees)(override val t: s.type)
           }).copiedFrom(m)
 
           val scope = (body: Expr) => {
-            val tupleVd = ValDef.fresh("t", matchType)
+            val tupleVd = ValDef.fresh("t", matchType).setPos(m)
             scrutScope(
               Let(tupleVd, matchE,
-                Let(res, tupleSelect(tupleVd.toVariable, 1, freshVars.nonEmpty),
+                Let(res, tupleSelect(tupleVd.toVariable, 1, freshVars.nonEmpty).setPos(m),
                   freshVars.zipWithIndex.foldLeft(body)((b, p) =>
-                    Let(p._1.toVal, tupleSelect(tupleVd.toVariable, p._2 + 2, true), b)
+                    Let(p._1.toVal, tupleSelect(tupleVd.toVariable, p._2 + 2, true).setPos(p._1), b).setPos(p._1)
                   )
-                )
-              )
+                ).setPos(m)
+              ).setPos(m)
             )
           }
 
@@ -184,17 +184,17 @@ class ImperativeCodeElimination(override val s: Trees)(override val t: s.type)
           ).setPos(alr)
 
           val freshVars = modifiedVars.map(_.freshen)
-          val tmpTuple = ValDef.fresh("t", newInvoc.getType)
+          val tmpTuple = ValDef.fresh("t", newInvoc.getType).setPos(alr)
 
           val scope = (body: Expr) => {
             argScope(Let(tmpTuple, newInvoc,
               freshVars.zipWithIndex.foldRight(body) { case ((v, i), b) =>
-                Let(v.toVal, TupleSelect(tmpTuple.toVariable, i + 2), b)
+                Let(v.toVal, TupleSelect(tmpTuple.toVariable, i + 2).setPos(v), b).setPos(v)
               }
-            ))
+            ).setPos(alr))
           }
 
-          (TupleSelect(tmpTuple.toVariable, 1), scope, argFun ++ (modifiedVars0 zip freshVars) ++ (modifiedVars zip freshVars))
+          (TupleSelect(tmpTuple.toVariable, 1).setPos(alr), scope, argFun ++ (modifiedVars0 zip freshVars) ++ (modifiedVars zip freshVars))
 
         case LetRec(Seq(fd), b) =>
           val inner = Inner(fd)
@@ -210,7 +210,7 @@ class ImperativeCodeElimination(override val s: Trees)(override val t: s.type)
             val newSpecs = specs.map(rewriteSpecs(allParams, _))
             val newFd = inner.copy(fullBody = reconstructSpecs(newSpecs, newBody, inner.returnType))
             val (bodyRes, bodyScope, bodyFun) = toFunction(b)
-            (bodyRes, (b2: Expr) => LetRec(Seq(newFd.toLocal), bodyScope(b2)).setPos(fd).copiedFrom(expr), bodyFun)
+            (bodyRes, (b2: Expr) => LetRec(Seq(newFd.toLocal), bodyScope(b2)).setPos(fd), bodyFun)
           }
 
           body match {
@@ -273,10 +273,10 @@ class ImperativeCodeElimination(override val s: Trees)(override val t: s.type)
                 val (fdRes, fdScope, fdDecls) = recHelper(bd, Map.empty, rewriteOldExpr = false) {
                   case (freshBody, freshVarDecls) =>
                     freshVars.zip(freshVarDecls).foldLeft(freshBody) {
-                      (body, p) => LetVar(p._2.toVal, p._1, body)
+                      (body, p) => LetVar(p._2.toVal, p._1, body).copiedFrom(p._2)
                     }
                 }
-                val newRes = Tuple(fdRes +: fdDecls)
+                val newRes = Tuple(fdRes +: fdDecls).copiedFrom(fdRes)
                 val newBody = fdScope(newRes)
                 val newReturnType = TupleType(inner.returnType +: modifiedVars.map(_.tpe))
 
@@ -299,11 +299,11 @@ class ImperativeCodeElimination(override val s: Trees)(override val t: s.type)
                         // ...
                       }
                     */
-                    val newRes = ValDef(res.id.freshen, newReturnType)
-                    val (pcRes, pcScope, _) = recHelper(postBody, Map(res.toVariable -> TupleSelect(newRes.toVariable, 1)), rewriteOldExpr = true) {
+                    val newRes = ValDef(res.id.freshen, newReturnType).setPos(res)
+                    val (pcRes, pcScope, _) = recHelper(postBody, Map(res.toVariable -> TupleSelect(newRes.toVariable, 1).setPos(newRes)), rewriteOldExpr = true) {
                       case (freshBody, freshVarDecls) =>
                         freshVarDecls.zipWithIndex.foldLeft(freshBody) {
-                          case (body, (vr, ix)) => LetVar(vr.toVal, TupleSelect(newRes.toVariable, ix + 2), body)
+                          case (body, (vr, ix)) => LetVar(vr.toVal, TupleSelect(newRes.toVariable, ix + 2).setPos(vr), body).setPos(vr)
                         }
                     }
                     Postcondition(Lambda(Seq(newRes), pcScope(pcRes)).copiedFrom(post)).setPos(spec)

@@ -1,0 +1,46 @@
+5:34;test;array index within bounds;valid
+5:50;test;array index within bounds;valid
+7:14;test;array index within bounds;valid
+7:14;test;array index within bounds;valid
+7:21;test;array index within bounds;valid
+7:21;test;array index within bounds;valid
+8:12;test;body assertion;valid
+8:15;test;array index within bounds;valid
+9:14;test;array index within bounds;valid
+9:14;test;array index within bounds;valid
+9:21;test;array index within bounds;valid
+9:21;test;array index within bounds;valid
+10:12;test;body assertion;valid
+10:15;test;array index within bounds;valid
+11:12;test;body assertion;valid
+11:15;test;array index within bounds;valid
+12:14;test;array index within bounds;valid
+12:14;test;array index within bounds;valid
+12:21;test;array index within bounds;valid
+12:21;test;array index within bounds;valid
+13:12;test;body assertion;valid
+13:15;test;array index within bounds;valid
+14:12;test;body assertion;valid
+14:15;test;array index within bounds;valid
+20:14;test2;array index within bounds;valid
+20:14;test2;array index within bounds;valid
+20:21;test2;array index within bounds;valid
+20:21;test2;array index within bounds;valid
+21:12;test2;body assertion;valid
+21:15;test2;array index within bounds;valid
+22:14;test2;array index within bounds;valid
+22:14;test2;array index within bounds;valid
+22:21;test2;array index within bounds;valid
+22:21;test2;array index within bounds;valid
+23:12;test2;body assertion;valid
+23:15;test2;array index within bounds;valid
+24:12;test2;body assertion;valid
+24:15;test2;array index within bounds;valid
+25:12;test2;body assertion;valid
+25:15;test2;array index within bounds;valid
+26:12;test2;body assertion;valid
+26:15;test2;array index within bounds;valid
+27:12;test2;body assertion;valid
+27:15;test2;array index within bounds;valid
+28:12;test2;body assertion;valid
+28:15;test2;array index within bounds;valid

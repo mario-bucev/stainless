@@ -1,0 +1,11 @@
+11:5;root;precondition;valid
+11:5;root;precondition;valid
+11:5;rootWhile;postcondition;valid
+11:5;rootWhile;postcondition;valid
+11:5;rootWhile;postcondition;valid
+11:5;rootWhile;postcondition;valid
+11:5;rootWhile;precondition;valid
+11:5;rootWhile;precondition;valid
+12:21;rootWhile;non-negative measure;valid
+15:14;rootWhile;body assertion;invalid
+18:5;root;postcondition;valid

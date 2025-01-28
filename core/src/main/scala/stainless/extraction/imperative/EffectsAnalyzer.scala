@@ -282,10 +282,10 @@ trait EffectsAnalyzer extends oo.CachingPhase {
 
     def wrap(expr: Expr, path: Seq[Accessor])(using symbols: Symbols): Option[Expr] = path match {
       case ADTFieldAccessor(id) +: xs =>
-        wrap(ADTSelector(expr, id), xs)
+        wrap(ADTSelector(expr, id).copiedFrom(expr), xs)
 
       case TupleFieldAccessor(idx) +: xs =>
-        wrap(TupleSelect(expr, idx), xs)
+        wrap(TupleSelect(expr, idx).copiedFrom(expr), xs)
 
       case ClassFieldAccessor(id) +: xs =>
         def asClassType(tpe: Type): Option[ClassType] = tpe match {
@@ -298,16 +298,16 @@ trait EffectsAnalyzer extends oo.CachingPhase {
           ct  <- asClassType(expr.getType)
           tcd <- symbols.classForField(ct, id)
           res <- if (tcd.cd.parents.isEmpty && tcd.cd.children.isEmpty)
-            wrap(ClassSelector(expr, id), xs)
+            wrap(ClassSelector(expr, id).copiedFrom(expr), xs)
           else
-            wrap(ClassSelector(AsInstanceOf(expr, tcd.toType), id), xs)
+            wrap(ClassSelector(AsInstanceOf(expr, tcd.toType).copiedFrom(expr), id).copiedFrom(expr), xs)
         } yield res
 
       case ArrayAccessor(idx) +: xs =>
-        wrap(ArraySelect(expr, idx), xs)
+        wrap(ArraySelect(expr, idx).copiedFrom(expr), xs)
 
       case MutableMapAccessor(idx) +: xs =>
-        wrap(MutableMapApply(expr, idx), xs)
+        wrap(MutableMapApply(expr, idx).copiedFrom(expr), xs)
 
       case Seq() =>
         Some(expr)

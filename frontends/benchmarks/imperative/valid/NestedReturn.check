@@ -1,0 +1,31 @@
+6:7;f;body assertion;valid
+6:7;f;body assertion: match exhaustiveness;valid
+10:5;example0;body assertion;valid
+10:5;example0;body assertion: match exhaustiveness;valid
+17:5;example1;body assertion;valid
+17:5;example1;body assertion: match exhaustiveness;valid
+24:7;f;body assertion;valid
+24:7;f;body assertion: match exhaustiveness;valid
+34:9;g;body assertion;valid
+34:9;g;body assertion: match exhaustiveness;valid
+38:7;f;body assertion;valid
+38:7;f;body assertion: match exhaustiveness;valid
+48:9;g;body assertion;valid
+48:9;g;body assertion: match exhaustiveness;valid
+52:7;f;body assertion;valid
+52:7;f;body assertion: match exhaustiveness;valid
+62:9;g1;body assertion;valid
+62:9;g1;body assertion: match exhaustiveness;valid
+67:9;g2;body assertion;valid
+67:9;g2;body assertion: match exhaustiveness;valid
+72:9;f;body assertion;valid
+72:9;f;body assertion: match exhaustiveness;valid
+76:7;f;body assertion;valid
+76:7;f;body assertion: match exhaustiveness;valid
+83:12;tests;body assertion;valid
+84:12;tests;body assertion;valid
+85:12;tests;body assertion;valid
+86:12;tests;body assertion;valid
+87:12;tests;body assertion;valid
+88:12;tests;body assertion;valid
+89:12;tests;body assertion;valid

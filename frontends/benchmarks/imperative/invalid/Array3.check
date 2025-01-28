@@ -1,0 +1,10 @@
+8:13;foo;body assertion: Non-negative array size;valid
+11:5;foo;precondition;valid
+11:5;foo;precondition;valid
+11:5;fooWhile;postcondition;valid
+11:5;fooWhile;postcondition;valid
+11:5;fooWhile;postcondition;valid
+11:5;fooWhile;postcondition;valid
+11:5;fooWhile;precondition;valid
+11:5;fooWhile;precondition;valid
+12:21;fooWhile;array index within bounds;invalid

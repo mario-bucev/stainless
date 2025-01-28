@@ -1,0 +1,17 @@
+13:10;t1;cast correctness;valid
+15:5;t1;cast correctness;valid
+18:16;t1;body assertion;valid
+20:12;t1;body assertion;valid
+20:14;t1;array index within bounds;valid
+20:14;t1;array index within bounds;valid
+20:14;t1;array index within bounds;valid
+20:14;t1;array index within bounds;valid
+20:14;t1;array index within bounds;valid
+20:14;t1;array index within bounds;valid
+20:14;t1;array index within bounds;valid
+23:10;t2;cast correctness;valid
+24:5;t2;cast correctness;valid
+28:12;t2;body assertion;valid
+31:10;t3;cast correctness;valid
+31:10;t3;cast correctness;valid
+36:12;t3;body assertion;valid

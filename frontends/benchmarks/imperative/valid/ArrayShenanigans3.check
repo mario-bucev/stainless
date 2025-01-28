@@ -1,0 +1,18 @@
+21:12;test;body assertion;valid
+22:12;test;body assertion;valid
+23:12;test;body assertion;valid
+24:12;test;body assertion;valid
+25:12;test;body assertion;valid
+25:38;test;array index within bounds;valid
+25:38;test;array index within bounds;valid
+25:38;test;array index within bounds;valid
+25:38;test;array index within bounds;valid
+25:38;test;array index within bounds;valid
+25:38;test;array index within bounds;valid
+26:12;test;body assertion;valid
+26:39;test;array index within bounds;valid
+26:39;test;array index within bounds;valid
+26:39;test;array index within bounds;valid
+26:39;test;array index within bounds;valid
+26:39;test;array index within bounds;valid
+26:39;test;array index within bounds;valid

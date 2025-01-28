@@ -85,7 +85,7 @@ trait SymbolOps extends inox.ast.SymbolOps with TypeOps { self =>
       case TuplePattern(ob, subps) =>
         val TupleType(tpes) = in.getType: @unchecked
         assert(tpes.size == subps.size)
-        val subTests = subps.zipWithIndex.map { case (p, i) => apply(tupleSelect(in, i+1, subps.size), p) }
+        val subTests = subps.zipWithIndex.map { case (p, i) => apply(tupleSelect(in, i+1, subps.size).copiedFrom(in), p) }
         bind(ob, in) `merge` subTests
 
       case AlternativePattern(ob, subps) =>
@@ -96,7 +96,7 @@ trait SymbolOps extends inox.ast.SymbolOps with TypeOps { self =>
 
       case up @ UnapplyPattern(ob, _, _, _, subps) =>
         val subs = unwrapTuple(up.get(in), subps.size).zip(subps) map (apply).tupled
-        bind(ob, in) `withCond` Not(up.isEmpty(in)) `merge` subs
+        bind(ob, in) `withCond` Not(up.isEmpty(in)).copiedFrom(up) `merge` subs
 
       case LiteralPattern(ob, lit) =>
         pp.empty `withCond` Equals(in, lit) `merge` bind(ob, in)
@@ -140,7 +140,7 @@ trait SymbolOps extends inox.ast.SymbolOps with TypeOps { self =>
         val tcons = getConstructor(id, tps)
         assert(tcons.fields.size == subps.size)
         val pairs = tcons.fields zip subps
-        val subMaps = pairs.map(p => mapForPattern(Annotated(adtSelector(in, p._1.id), Seq(DropVCs)).copiedFrom(p._1), p._2))
+        val subMaps = pairs.map(p => mapForPattern(Annotated(adtSelector(in, p._1.id), Seq(DropVCs)).copiedFrom(in), p._2))
         val together = subMaps.flatten.toMap
         bindIn(b) ++ together
 
@@ -148,7 +148,7 @@ trait SymbolOps extends inox.ast.SymbolOps with TypeOps { self =>
         val TupleType(tpes) = in.getType: @unchecked
         assert(tpes.size == subps.size)
 
-        val maps = subps.zipWithIndex.map { case (p, i) => mapForPattern(tupleSelect(in, i+1, subps.size), p)}
+        val maps = subps.zipWithIndex.map { case (p, i) => mapForPattern(tupleSelect(in, i+1, subps.size).copiedFrom(in), p)}
         val map = maps.flatten.toMap
         bindIn(b) ++ map
 

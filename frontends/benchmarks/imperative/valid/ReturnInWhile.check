@@ -1,0 +1,59 @@
+7:5;return5;precondition;valid
+7:5;return5While;body assertion: match exhaustiveness;valid
+7:5;return5While;body assertion: match exhaustiveness;valid
+7:5;return5While;body assertion: match exhaustiveness;valid
+7:5;return5While;body assertion: match exhaustiveness;valid
+7:5;return5While;body assertion: match exhaustiveness;valid
+7:5;return5While;postcondition;valid
+7:5;return5While;postcondition;valid
+7:5;return5While;postcondition;valid
+7:5;return5While;postcondition;valid
+7:5;return5While;postcondition;valid
+7:5;return5While;postcondition;valid
+7:5;return5While;postcondition;valid
+7:5;return5While;postcondition;valid
+7:5;return5While;precondition;valid
+7:12;return5While;postcondition;valid
+7:12;return5While;postcondition;valid
+7:12;return5While;postcondition;valid
+7:12;return5While;postcondition;valid
+8:17;return5While;non-negative measure;valid
+11:5;return5;body assertion;valid
+11:5;return5;body assertion: match exhaustiveness;valid
+18:5;returnN;precondition;valid
+18:5;returnNWhile;body assertion: match exhaustiveness;valid
+18:5;returnNWhile;body assertion: match exhaustiveness;valid
+18:5;returnNWhile;body assertion: match exhaustiveness;valid
+18:5;returnNWhile;body assertion: match exhaustiveness;valid
+18:5;returnNWhile;body assertion: match exhaustiveness;valid
+18:5;returnNWhile;postcondition;valid
+18:5;returnNWhile;postcondition;valid
+18:5;returnNWhile;postcondition;valid
+18:5;returnNWhile;postcondition;valid
+18:5;returnNWhile;precondition;valid
+19:17;returnNWhile;non-negative measure;valid
+21:7;returnNWhile;body assertion: match exhaustiveness;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+22:18;returnNWhile;postcondition;valid
+24:5;returnN;body assertion;valid
+24:5;returnN;body assertion: match exhaustiveness;valid
+24:5;returnN;postcondition;valid
+24:5;returnN;postcondition;valid
+25:5;returnN;postcondition;valid
+29:12;tests;body assertion;valid
+30:12;tests;body assertion;valid
+30:12;tests;precondition;valid

@@ -1,0 +1,6 @@
+12:20;test;array index within bounds;valid
+12:20;test;array index within bounds;valid
+12:20;test;array index within bounds;valid
+14:12;test;body assertion;invalid
+14:16;test;array index within bounds;valid
+14:16;test;array index within bounds;valid

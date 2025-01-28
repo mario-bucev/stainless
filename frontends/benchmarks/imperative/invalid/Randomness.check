@@ -1,0 +1,3 @@
+11:5;random;body assertion: Choose satisfiability;valid
+24:8;findPositive;postcondition;invalid
+26:7;findPositive;postcondition;valid

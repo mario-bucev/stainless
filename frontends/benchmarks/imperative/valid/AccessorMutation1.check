@@ -1,0 +1,8 @@
+8:9;value;cast correctness;valid
+8:9;value;cast correctness;valid
+8:9;value;cast correctness;valid
+19:12;t1;body assertion;valid
+22:10;t2;body assertion: Inner refinement lifting;valid
+23:5;t2;body assertion: Inner refinement lifting;valid
+23:5;t2;postcondition;valid
+24:12;t2;body assertion;valid

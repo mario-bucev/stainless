@@ -1,0 +1,12 @@
+18:50;mutuallyRec2;array index within bounds;valid
+19:15;mutuallyRec2;non-negative measure;valid
+19:22;mutuallyRec2;array index within bounds;valid
+20:8;mutuallyRec2;array index within bounds;valid
+21:5;mutuallyRec1;array index within bounds;valid
+21:5;mutuallyRec1;array index within bounds;valid
+21:5;mutuallyRec1;array index within bounds;valid
+21:5;mutuallyRec1;array index within bounds;valid
+21:5;mutuallyRec1;postcondition;valid
+21:5;mutuallyRec1;postcondition;valid
+21:5;mutuallyRec1;precondition;valid
+21:5;mutuallyRec2;body assertion: Inlined precondition of mutuallyRec1;valid

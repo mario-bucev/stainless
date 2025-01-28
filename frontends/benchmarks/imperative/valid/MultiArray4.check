@@ -1,0 +1,6 @@
+4:33;foo;array index within bounds;valid
+5:7;foo;array index within bounds;valid
+5:10;foo;array index within bounds;valid
+6:5;foo;postcondition;valid
+6:7;foo;array index within bounds;valid
+6:10;foo;array index within bounds;valid

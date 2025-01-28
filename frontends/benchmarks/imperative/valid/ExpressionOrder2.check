@@ -1,0 +1,2 @@
+10:47;testArrayAccess;array index within bounds;valid
+12:5;testArrayAccess;postcondition;valid

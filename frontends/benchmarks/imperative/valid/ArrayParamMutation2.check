@@ -1,0 +1,15 @@
+6:31;rec;array index within bounds;valid
+7:17;rec;array index within bounds;valid
+8:10;rec;array index within bounds;valid
+9:7;rec;postcondition;valid
+9:9;rec;array index within bounds;valid
+11:9;rec;array index within bounds;valid
+11:16;rec;array index within bounds;valid
+12:9;rec;array index within bounds;valid
+12:16;rec;array index within bounds;valid
+12:23;rec;array index within bounds;valid
+13:7;rec;postcondition;valid
+13:7;rec;precondition;valid
+15:36;rec;non-negative measure;valid
+15:38;rec;array index within bounds;valid
+15:38;rec;array index within bounds;valid

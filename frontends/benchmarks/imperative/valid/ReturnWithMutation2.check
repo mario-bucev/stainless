@@ -1,0 +1,8 @@
+4:5;f;body assertion: match exhaustiveness;valid
+5:5;f;body assertion: match exhaustiveness;valid
+5:11;f;array index within bounds;valid
+6:11;f;array index within bounds;valid
+10:12;test;body assertion;valid
+10:12;test;precondition;valid
+11:12;test;body assertion;valid
+11:12;test;precondition;valid

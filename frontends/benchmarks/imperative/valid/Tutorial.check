@@ -1,0 +1,54 @@
+9:9;::;postcondition;valid
+19:42;sizeSpec;body assertion: match exhaustiveness;valid
+27:5;size;precondition;valid
+27:5;size;precondition;valid
+27:5;sizeWhile;postcondition;valid
+27:5;sizeWhile;postcondition;valid
+27:5;sizeWhile;postcondition;valid
+27:5;sizeWhile;postcondition;valid
+27:5;sizeWhile;precondition;valid
+27:5;sizeWhile;precondition;valid
+29:13;sizeWhile;precondition;valid
+31:33;sizeWhile;non-negative measure;valid
+32:5;size;postcondition;valid
+43:5;tail;body assertion: match exhaustiveness;valid
+48:63;foreach;body assertion: match exhaustiveness;valid
+61:12;testForeach;body assertion;valid
+72:9;balance;postcondition;valid
+78:18;save;class invariant: inv;valid
+79:7;save;postcondition;valid
+79:17;save;class invariant: inv;valid
+85:5;transfer;class invariant: inv;valid
+86:5;transfer;class invariant: inv;valid
+86:5;transfer;postcondition;valid
+114:5;retry;precondition;valid
+114:5;retry;precondition;valid
+114:5;retryWhile;postcondition;valid
+114:5;retryWhile;postcondition;valid
+114:5;retryWhile;postcondition;valid
+114:5;retryWhile;postcondition;valid
+114:5;retryWhile;precondition;valid
+114:5;retryWhile;precondition;valid
+115:17;retryWhile;non-negative measure;valid
+116:17;retryWhile;precondition;valid
+119:5;retry;postcondition;valid
+124:5;execute;postcondition;valid
+124:8;execute;precondition;valid
+125:10;execute;precondition;valid
+126:9;execute;precondition;valid
+138:7;addOp;class invariant: inv;valid
+144:7;subOp;class invariant: inv;valid
+152:5;transfer2;postcondition;valid
+152:18;transfer2;precondition;valid
+160:12;transfer2;body assertion;valid
+170:31;test;class invariant: inv;valid
+176:31;test;class invariant: inv;valid
+179:27;test;class invariant: inv;valid
+181:5;test;precondition;valid
+182:12;test;body assertion;valid
+183:5;test;precondition;valid
+184:12;test;body assertion;valid
+202:12;testOrder;body assertion;valid
+203:12;testOrder;body assertion;valid
+224:12;test;body assertion;valid
+225:12;test;body assertion;valid

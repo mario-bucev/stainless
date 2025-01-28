@@ -157,7 +157,7 @@ class AntiAliasing(override val s: Trees)(override val t: s.type)(using override
               makeSideEffectsExplicit(postBody, fd, env, Seq.empty)
             )
 
-            exprOps.Postcondition(Lambda(Seq(newRes), newBody).copiedFrom(post))
+            exprOps.Postcondition(Lambda(Seq(newRes), newBody).copiedFrom(post)).setPos(post)
 
           case spec => spec
         }
@@ -311,7 +311,7 @@ class AntiAliasing(override val s: Trees)(override val t: s.type)(using override
             val assgns = localEffects.zipWithIndex.flatMap {
               case ((vd, effects, arg), effIndex) =>
                 // +1 because we are a tuple and +1 because the first component is for the result of the function
-                val resSelect = TupleSelect(freshRes.toVariable, effIndex + 2)
+                val resSelect = TupleSelect(freshRes.toVariable, effIndex + 2).copiedFrom(nfi)
                 // All effects on the given parameter, applied to the given argument
                 val paramWithArgsEffect = for {
                   outerEffect0 <- effects
@@ -356,7 +356,7 @@ class AntiAliasing(override val s: Trees)(override val t: s.type)(using override
                 //   }
                 // We can do so because we know precisely the `Targets` of the argument, namely `testRR`
                 // and we can update its aliases accordingly.
-                // This correspond to the `Success` case of having a `ModifyingEffect` on `vd` (here: `rr`)
+                // This corresponds to the `Success` case of having a `ModifyingEffect` on `vd` (here: `rr`)
                 // applied on `arg` (here: `testRR`).
                 //
                 // However, sometimes, we may not always succeed in computing the precise targets,
@@ -464,17 +464,17 @@ class AntiAliasing(override val s: Trees)(override val t: s.type)(using override
                 }
             }
             val exprRes =
-              if (selectResult) TupleSelect(freshRes.toVariable, 1)
+              if (selectResult) TupleSelect(freshRes.toVariable, 1).copiedFrom(nfi)
               else freshRes.toVariable
-            val extractResults = Block(assgns, exprRes)
+            val extractResults = Block(assgns, exprRes).copiedFrom(nfi)
             // FIXME: This should be `Let` and not `LetVar`, however doing so will cause a crash in e.g. `MapAliasing1`
             //  because `getAllTargetsDealiased` in the `Let` case will result in an invalid target due to
             //  this function not supporting targets computation on function application *post-transformation*
             // (see important notice on above).
             if (isMutableType(nfiType)) {
-              LetVar(freshRes, nfi, extractResults)
+              LetVar(freshRes, nfi, extractResults).copiedFrom(nfi)
             } else {
-              Let(freshRes, nfi, extractResults)
+              Let(freshRes, nfi, extractResults).copiedFrom(nfi)
             }
           } else {
             nfi
@@ -802,7 +802,7 @@ class AntiAliasing(override val s: Trees)(override val t: s.type)(using override
                   //   var vd = newExpr
                   //   val resVd = {
                   //      newBody'
-                  //  }.ensuring(...) // oh no :(
+                  //   }.ensuring(...) // oh no :(
                   //   copyEffects
                   //   resVd
                   // What we would like is something as follows:

@@ -1,0 +1,6 @@
+13:20;incA;postcondition;valid
+15:5;simpleSideEffect;precondition;valid
+16:5;simpleSideEffect;precondition;valid
+17:5;simpleSideEffect;precondition;valid
+18:5;simpleSideEffect;precondition;valid
+19:5;simpleSideEffect;postcondition;invalid

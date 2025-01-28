@@ -1,0 +1,15 @@
+13:5;random;postcondition;valid
+14:12;random;body assertion;valid
+15:5;random;body assertion: Choose satisfiability;valid
+19:18;main;precondition;valid
+21:17;main;precondition;valid
+26:5;main;precondition;valid
+26:5;main;precondition;valid
+26:5;mainWhile;postcondition;valid
+26:5;mainWhile;postcondition;valid
+26:5;mainWhile;precondition;valid
+26:5;mainWhile;precondition;valid
+27:18;mainWhile;non-negative measure;valid
+30:17;mainWhile;precondition;valid
+33:17;mainWhile;precondition;valid
+39:12;main;body assertion;valid

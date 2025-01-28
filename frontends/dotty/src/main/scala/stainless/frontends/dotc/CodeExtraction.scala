@@ -624,8 +624,8 @@ class CodeExtraction(inoxCtx: inox.Context,
     val vdSym = vd.symbol
     val retType = extractType(vd.tpt)
     val thiss = classType match {
-      case ct: xt.ClassType => xt.This(ct)
-      case lct: xt.LocalClassType => xt.LocalThis(lct)
+      case ct: xt.ClassType => xt.This(ct).setPos(vdSym.sourcePos)
+      case lct: xt.LocalClassType => xt.LocalThis(lct).setPos(vdSym.sourcePos)
     }
     vd match {
       case ExCtorFieldDef(_, _, _) | ExCtorMutableFieldDef(_, _, _) =>
@@ -638,7 +638,7 @@ class CodeExtraction(inoxCtx: inox.Context,
           Seq.empty,
           Seq.empty,
           retType,
-          classSelector(classType, thiss, fieldId),
+          classSelector(classType, thiss, fieldId).setPos(vdSym.sourcePos),
           commonFunctionFlags(vdSym, isAbstract = false) ++ Seq(xt.IsAccessor(Some(fieldId)))
         ).setPos(vdSym.sourcePos)
         Seq(accessorFnDef)
@@ -917,11 +917,11 @@ class CodeExtraction(inoxCtx: inox.Context,
   // Note that this pattern will be correctly rejected as "Unsupported pattern" (in fact, it cannot be even tested at runtime):
   //     val (aa: B, bb: B) = (a, b)
   private def extractPattern(p: tpd.Tree, expectedTpe: Option[xt.Type], binder: Option[xt.ValDef] = None)(using dctx: DefContext): (xt.Pattern, DefContext) = p match {
-    
+
     case a @ Alternative(subpatterns) =>
       val (patterns, nctx) = subpatterns.map(extractPattern(_, expectedTpe)).unzip
       (xt.AlternativePattern(binder, patterns), dctx)
-    
+
     case b @ Bind(name, t @ Typed(pat, tpt)) =>
       val vd = xt.ValDef(FreshIdentifier(name.toString), extractType(tpt), annotationsOf(b.symbol, ignoreOwner = true)).setPos(b.sourcePos)
       val pctx = dctx.withNewVar(b.symbol -> (() => vd.toVariable))
@@ -1097,6 +1097,8 @@ class CodeExtraction(inoxCtx: inox.Context,
   }
 
   private def extractBlock(es: List[tpd.Tree])(using dctx: DefContext): xt.Expr = {
+    val lastPosition = es.lastOption.map(t => dottyPosToInoxPos(t.sourcePos)).getOrElse(inox.utils.NoPosition)
+
     val fctx = es.collect {
       case ExFunctionDef(sym, tparams, vparams, tpt, rhs) => (sym, tparams, vparams)
     }.foldLeft(dctx) { case (dctx, (sym, tparams, vparams)) =>
@@ -1156,7 +1158,7 @@ class CodeExtraction(inoxCtx: inox.Context,
     }
 
     def rec(es: List[tpd.Tree]): xt.Expr = es match {
-      case Nil => xt.UnitLiteral()
+      case Nil => xt.UnitLiteral().setPos(lastPosition)
 
       case (i: tpd.Import) :: xs => recOrNoTree(xs)
 
@@ -1165,10 +1167,14 @@ class CodeExtraction(inoxCtx: inox.Context,
 
         val contr = extractTree(contract)(using cctx)
         val b = contr match {
-          // If we encounter an assert(false) as the last statement, we can refine the return type to Nothing by
-          // having the body of the xt.Assert to be a NoTree of Nothing.
+          // If we encounter an assert(false) as the last statement, we must refine the return type to Nothing by
+          // having the body of the xt.Assert to be a NoTree of Nothing. This is due to the fact that the Scala 3
+          // compiler inlines the call to assertFailed.
+          // If we do not put a NoTree of Nothing, recOrNoTree will return the () literal,
+          // which will later cause a type-checking error, as the function is typed as Nothing and yet
+          // we return ().
           case xt.BooleanLiteral(false) if xs.isEmpty =>
-            xt.NoTree(xt.NothingType())
+            xt.NoTree(xt.NothingType().setPos(e.sourcePos)).setPos(e.sourcePos)
           case _ => recOrNoTree(xs)
         }
         xt.Assert(wrap(contr), oerr, b).setPos(e.sourcePos)
@@ -1696,19 +1702,19 @@ class CodeExtraction(inoxCtx: inox.Context,
 
     case ExClassConstruction(tpe, args) =>
       extractType(tpe)(using dctx, tr.sourcePos) match {
-      case lct: xt.LocalClassType => xt.LocalClassConstructor(lct, args map extractTree)
-      case ct: xt.ClassType => xt.ClassConstructor(ct, args map extractTree)
-      case tt: xt.TupleType => xt.Tuple(args map extractTree)
-      case at: xt.ArrayType if args.size == 1 && extractType(args.head.tpe)(using dctx, tr.sourcePos) == xt.Int32Type() =>
-        mkZeroForPrimitive(at.base) match {
-          case Some(zero) =>
-            val recArg = extractTree(args.head)
-            xt.LargeArray(Map.empty, zero, recArg, at.base)
-          case None =>
-            outOfSubsetError(tr, s"Cannot use array constructor for non-primitive type ${at.base}\nHint: you may use `Array.fill` instead")
-        }
-      case _ => outOfSubsetError(tr, "Unexpected constructor " + tr.show + "   " + tpe.show)
-    }
+        case lct: xt.LocalClassType => xt.LocalClassConstructor(lct, args map extractTree)
+        case ct: xt.ClassType => xt.ClassConstructor(ct, args map extractTree)
+        case tt: xt.TupleType => xt.Tuple(args map extractTree)
+        case at: xt.ArrayType if args.size == 1 && extractType(args.head.tpe)(using dctx, tr.sourcePos) == xt.Int32Type() =>
+          mkZeroForPrimitive(at.base) match {
+            case Some(zero) =>
+              val recArg = extractTree(args.head)
+              xt.LargeArray(Map.empty, zero, recArg, at.base)
+            case None =>
+              outOfSubsetError(tr, s"Cannot use array constructor for non-primitive type ${at.base}\nHint: you may use `Array.fill` instead")
+          }
+        case _ => outOfSubsetError(tr, "Unexpected constructor " + tr.show + "   " + tpe.show)
+      }
 
     case ExNot(e)    => xt.Not(extractTree(e))
     case ExUMinus(e) => injectCast(xt.UMinus.apply)(e)

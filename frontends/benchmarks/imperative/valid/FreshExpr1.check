@@ -1,0 +1,27 @@
+19:12;test1;body assertion;valid
+20:12;test1;body assertion;valid
+43:14;test2;body assertion: match exhaustiveness;valid
+43:14;test2;cast correctness;valid
+43:14;test2;cast correctness;valid
+43:14;test2;cast correctness;valid
+43:14;test2;cast correctness;valid
+47:12;test2;body assertion;valid
+47:12;test2;body assertion: match exhaustiveness;valid
+47:12;test2;cast correctness;valid
+47:12;test2;cast correctness;valid
+51:10;test2;precondition;valid
+51:16;test2;non-negative measure;valid
+61:14;test3;body assertion: match exhaustiveness;valid
+61:14;test3;cast correctness;valid
+61:14;test3;cast correctness;valid
+61:14;test3;cast correctness;valid
+61:14;test3;cast correctness;valid
+65:12;test3;body assertion;valid
+65:12;test3;body assertion: match exhaustiveness;valid
+65:12;test3;cast correctness;valid
+65:12;test3;cast correctness;valid
+68:17;test3;body assertion: match exhaustiveness;valid
+68:17;test3;cast correctness;valid
+68:17;test3;cast correctness;valid
+71:10;test3;precondition;valid
+71:16;test3;non-negative measure;valid

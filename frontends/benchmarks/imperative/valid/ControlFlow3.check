@@ -1,0 +1,33 @@
+9:5;bar;body assertion: match exhaustiveness;valid
+11:5;bar;precondition;valid
+11:5;bar;precondition;valid
+11:5;barWhile;body assertion: match exhaustiveness;valid
+11:5;barWhile;body assertion: match exhaustiveness;valid
+11:5;barWhile;body assertion: match exhaustiveness;valid
+11:5;barWhile;body assertion: match exhaustiveness;valid
+11:5;barWhile;body assertion: match exhaustiveness;valid
+11:5;barWhile;postcondition;valid
+11:5;barWhile;postcondition;valid
+11:5;barWhile;postcondition;valid
+11:5;barWhile;postcondition;valid
+11:5;barWhile;precondition;valid
+11:5;barWhile;precondition;valid
+12:17;barWhile;non-negative measure;valid
+13:16;barWhile;precondition;valid
+17:7;barWhile;body assertion: match exhaustiveness;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+18:18;barWhile;postcondition;valid
+20:5;bar;body assertion: match exhaustiveness;valid
+24:12;testBar;body assertion;valid
+25:12;testBar;body assertion;valid
+26:12;testBar;body assertion;valid

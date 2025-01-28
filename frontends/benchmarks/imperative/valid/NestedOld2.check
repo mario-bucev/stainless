@@ -1,0 +1,4 @@
+16:7;step;postcondition;valid
+21:5;test;precondition;valid
+22:5;test;precondition;valid
+23:5;test;postcondition;valid

@@ -1,0 +1,6 @@
+12:9;bitStream;body assertion: Inner refinement lifting;valid
+12:9;bitStream;postcondition;valid
+12:9;bitStream;precondition;valid
+14:9;peekBit;body assertion: Inner refinement lifting;valid
+14:9;peekBit;postcondition;valid
+14:9;peekBit;precondition;valid

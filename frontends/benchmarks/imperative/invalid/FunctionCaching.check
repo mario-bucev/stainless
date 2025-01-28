@@ -1,0 +1,5 @@
+9:5;fun;body assertion: match exhaustiveness;valid
+24:5;funWronglyCached;postcondition;invalid
+28:78;multipleCalls;body assertion: match exhaustiveness;valid
+30:10;multipleCalls;precondition;valid
+30:10;multipleCalls;precondition;valid

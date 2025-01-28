@@ -1,0 +1,21 @@
+9:14;foo;body assertion: Non-negative array size;valid
+11:5;foo;precondition;valid
+11:5;foo;precondition;valid
+11:5;fooWhile;postcondition;valid
+11:5;fooWhile;postcondition;valid
+11:5;fooWhile;postcondition;valid
+11:5;fooWhile;postcondition;valid
+11:5;fooWhile;precondition;valid
+11:5;fooWhile;precondition;valid
+12:17;fooWhile;non-negative measure;valid
+13:10;fooWhile;array index within bounds;valid
+13:17;fooWhile;array index within bounds;valid
+15:84;fooWhile;array index within bounds;valid
+15:84;fooWhile;array index within bounds;valid
+15:84;fooWhile;array index within bounds;valid
+15:92;fooWhile;array index within bounds;valid
+15:92;fooWhile;array index within bounds;valid
+15:92;fooWhile;array index within bounds;valid
+16:5;foo;postcondition;valid
+17:15;foo;array index within bounds;valid
+17:23;foo;array index within bounds;valid

@@ -1,0 +1,11 @@
+10:5;foo;precondition;valid
+10:5;foo;precondition;valid
+10:5;fooWhile;postcondition;valid
+10:5;fooWhile;postcondition;valid
+10:5;fooWhile;postcondition;valid
+10:5;fooWhile;postcondition;valid
+10:5;fooWhile;precondition;valid
+10:5;fooWhile;precondition;valid
+11:17;fooWhile;non-negative measure;valid
+12:21;fooWhile;array index within bounds;valid
+19:13;bar;body assertion: Non-negative array size;valid

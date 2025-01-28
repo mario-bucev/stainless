@@ -1,0 +1,24 @@
+12:5;root1;precondition;valid
+12:5;root1;precondition;valid
+12:5;root1While;postcondition;valid
+12:5;root1While;postcondition;valid
+12:5;root1While;postcondition;valid
+12:5;root1While;postcondition;valid
+12:5;root1While;precondition;valid
+12:5;root1While;precondition;valid
+13:21;root1While;non-negative measure;valid
+15:14;root1While;body assertion;valid
+18:14;root1While;body assertion;valid
+21:5;root1;postcondition;valid
+31:5;root2;precondition;valid
+31:5;root2;precondition;valid
+31:5;root2While;postcondition;valid
+31:5;root2While;postcondition;valid
+31:5;root2While;postcondition;valid
+31:5;root2While;postcondition;valid
+31:5;root2While;precondition;valid
+31:5;root2While;precondition;valid
+32:21;root2While;non-negative measure;valid
+34:14;root2While;body assertion;valid
+37:14;root2While;body assertion;valid
+40:5;root2;postcondition;valid

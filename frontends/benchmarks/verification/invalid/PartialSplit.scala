@@ -3,7 +3,7 @@ import stainless.lang._
 import stainless.collection._
 import stainless.annotation.{partialEval => _}
 
-object split {
+object PartialSplit {
 
   sealed abstract class P
   case object Alice   extends P;

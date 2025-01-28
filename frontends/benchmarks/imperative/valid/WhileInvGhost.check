@@ -1,0 +1,9 @@
+12:5;appendBits;precondition;valid
+12:5;appendBits;precondition;valid
+12:5;appendBitsWhile;postcondition;valid
+12:5;appendBitsWhile;postcondition;valid
+12:5;appendBitsWhile;postcondition;valid
+12:5;appendBitsWhile;postcondition;valid
+12:5;appendBitsWhile;precondition;valid
+12:5;appendBitsWhile;precondition;valid
+13:17;appendBitsWhile;non-negative measure;valid

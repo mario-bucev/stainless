@@ -1,0 +1,14 @@
+45:12;theorem1;body assertion;valid
+48:19;theorem1bis;body assertion: Inner refinement lifting;valid
+50:5;theorem1bis;body assertion: Inner refinement lifting;valid
+50:5;theorem1bis;postcondition;valid
+51:12;theorem1bis;body assertion;valid
+57:12;theorem2;body assertion;valid
+60:19;theorem2bis;body assertion: Inner refinement lifting;valid
+62:5;theorem2bis;body assertion: Inner refinement lifting;valid
+62:5;theorem2bis;postcondition;valid
+63:12;theorem2bis;body assertion;valid
+69:12;theorem3;body assertion;valid
+73:12;theorem4;body assertion;valid
+78:12;theorem5;body assertion;valid
+82:12;theorem5;body assertion;valid

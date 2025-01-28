@@ -1,0 +1,9 @@
+16:11;f;cast correctness;valid
+16:11;f;cast correctness;valid
+16:11;f;cast correctness;valid
+16:11;f;cast correctness;valid
+18:23;f;cast correctness;valid
+18:23;f;cast correctness;valid
+22:12;f;body assertion;invalid
+23:12;f;body assertion;invalid
+24:12;f;body assertion;invalid

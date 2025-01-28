@@ -1,0 +1,24 @@
+13:5;laboriousIdentity1;precondition;valid
+13:5;laboriousIdentity1;precondition;valid
+13:5;laboriousIdentity1While;postcondition;valid
+13:5;laboriousIdentity1While;postcondition;valid
+13:5;laboriousIdentity1While;postcondition;valid
+13:5;laboriousIdentity1While;postcondition;valid
+13:5;laboriousIdentity1While;precondition;valid
+13:5;laboriousIdentity1While;precondition;valid
+14:21;laboriousIdentity1While;non-negative measure;valid
+16:14;laboriousIdentity1While;body assertion;valid
+19:14;laboriousIdentity1While;body assertion;valid
+22:5;laboriousIdentity1;postcondition;valid
+32:5;laboriousIdentity2;precondition;valid
+32:5;laboriousIdentity2;precondition;valid
+32:5;laboriousIdentity2While;postcondition;valid
+32:5;laboriousIdentity2While;postcondition;valid
+32:5;laboriousIdentity2While;postcondition;valid
+32:5;laboriousIdentity2While;postcondition;valid
+32:5;laboriousIdentity2While;precondition;valid
+32:5;laboriousIdentity2While;precondition;valid
+33:21;laboriousIdentity2While;non-negative measure;valid
+35:14;laboriousIdentity2While;body assertion;valid
+38:14;laboriousIdentity2While;body assertion;valid
+41:5;laboriousIdentity2;postcondition;valid

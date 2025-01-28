@@ -1,0 +1,22 @@
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+9:11;rec;cast correctness;valid
+11:5;rec;body assertion: match exhaustiveness;valid
+11:5;rec;postcondition;valid
+13:16;rec;remainder by zero;valid
+15:9;rec;postcondition;valid
+15:9;rec;precondition;valid
+17:9;rec;postcondition;valid
+21:40;allZeroOrOne;body assertion: match exhaustiveness;valid
+21:40;allZeroOrOne;cast correctness;valid
+21:40;allZeroOrOne;cast correctness;valid
+21:40;allZeroOrOne;cast correctness;valid
+21:40;allZeroOrOne;cast correctness;valid
+26:35;allZero;body assertion: match exhaustiveness;valid
+26:35;allZero;cast correctness;valid
+26:35;allZero;cast correctness;valid
+26:35;allZero;cast correctness;valid
+26:35;allZero;cast correctness;valid

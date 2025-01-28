@@ -1,0 +1,4 @@
+7:9;foo;array index within bounds;valid
+12:5;test;precondition;valid
+13:5;test;postcondition;valid
+13:9;test;array index within bounds;valid

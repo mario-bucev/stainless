@@ -1,0 +1,8 @@
+13:5;get_mut;cast correctness;valid
+13:5;get_mut;cast correctness;valid
+22:5;main;cast correctness;valid
+22:5;main;cast correctness;valid
+22:5;main;cast correctness;valid
+22:5;main;cast correctness;valid
+24:23;main;body assertion: no value;valid
+27:7;main;body assertion;valid

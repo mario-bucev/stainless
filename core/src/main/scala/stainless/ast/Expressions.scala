@@ -159,13 +159,13 @@ trait Expressions extends inox.ast.Expressions with Types { self: Trees =>
 
   /**
     * Pattern encoding like `case binder @ (subPattern1 | subPattern2 | ...) => ...`
-    * 
+    *
     * If [[binder]] is empty, consider a wildcard `_` in its place.
     */
-  sealed case class AlternativePattern(binder: Option[ValDef], subPatterns: Seq[Pattern]) extends Pattern 
+  sealed case class AlternativePattern(binder: Option[ValDef], subPatterns: Seq[Pattern]) extends Pattern
 
   protected def unapplyScrut(scrut: Expr, up: UnapplyPattern)(using s: Symbols): Expr = {
-    FunctionInvocation(up.id, up.tps, up.recs :+ scrut)
+    FunctionInvocation(up.id, up.tps, up.recs :+ scrut).copiedFrom(scrut)
   }
 
   protected def unapplyAccessor(unapplied: Expr, id: Identifier, up: UnapplyPattern)(using s: Symbols): Expr = {
@@ -175,7 +175,7 @@ trait Expressions extends inox.ast.Expressions with Types { self: Trees =>
     val unapp = up.getFunction
     val tpMap = s.instantiation(fd.params.head.tpe, unapp.returnType)
       .getOrElse(throw extraction.MalformedStainlessCode(up, "Unapply pattern failed type instantiation"))
-    fd.typed(fd.typeArgs map tpMap).applied(Seq(unapplied))
+    fd.typed(fd.typeArgs map tpMap).applied(Seq(unapplied)).copiedFrom(unapplied)
   }
 
   /** A custom pattern defined through an object's `unapply` function */
@@ -298,7 +298,10 @@ trait Expressions extends inox.ast.Expressions with Types { self: Trees =>
   }
 
   object SplitAnd {
-    def apply(lhs: Expr, rhs: Expr): Expr = Annotated(And(lhs, rhs), Seq(SplitVC))
+    def apply(lhs: Expr, rhs: Expr): Expr = {
+      val pos = inox.utils.Position.between(lhs.getPos, rhs.getPos)
+      Annotated(And(lhs, rhs).setPos(pos), Seq(SplitVC)).setPos(pos)
+    }
 
     def many(exprs: Expr*): Expr = {
       val conjuncts = exprs.filter(_ != BooleanLiteral(true))

@@ -1,0 +1,9 @@
+7:8;multipleEffects;array index within bounds;valid
+8:5;multipleEffects;postcondition;valid
+8:8;multipleEffects;array index within bounds;valid
+9:21;multipleEffects;array index within bounds;valid
+9:30;multipleEffects;array index within bounds;valid
+13:5;f;postcondition;valid
+13:5;f;precondition;valid
+14:21;f;array index within bounds;valid
+14:36;f;array index within bounds;valid

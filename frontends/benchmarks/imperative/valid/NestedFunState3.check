@@ -1,0 +1,10 @@
+18:5;counterN;precondition;valid
+18:5;counterN;precondition;valid
+18:5;counterNWhile;postcondition;valid
+18:5;counterNWhile;postcondition;valid
+18:5;counterNWhile;postcondition;valid
+18:5;counterNWhile;postcondition;valid
+18:5;counterNWhile;precondition;valid
+18:5;counterNWhile;precondition;valid
+19:17;counterNWhile;non-negative measure;valid
+24:5;counterN;postcondition;valid

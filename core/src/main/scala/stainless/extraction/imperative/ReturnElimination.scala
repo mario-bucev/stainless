@@ -84,7 +84,7 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
       case t.IfExpr(cond, e1, e2) => t.IfExpr(cond, rec(e1), rec(e2)).setPos(expr)
       case t.MatchExpr(scrut, cases) => t.MatchExpr(scrut, cases.map {
         case mc @ t.MatchCase(pat, optGuard, rhs) =>
-        t.MatchCase(pat, optGuard, rec(rhs)).copiedFrom(mc)
+          t.MatchCase(pat, optGuard, rec(rhs)).copiedFrom(mc)
       }).setPos(expr)
       case t.Block(es, last) => t.Block(es, rec(last)).setPos(expr)
       case _ =>
@@ -170,7 +170,7 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
             t.exprOps.Precondition(t.SplitAnd.manyJoin(transformedInv.toSeq :+ getFunctionalResult(transformedCond))).setPos(wh) +:
             specced.specs
 
-          val fullBody = t.exprOps.BodyWithSpecs(newSpecs, newBody.getOrElse(t.UnitLiteral())).reconstructed.copiedFrom(wh)
+          val fullBody = t.exprOps.BodyWithSpecs(newSpecs, newBody.getOrElse(t.UnitLiteral().copiedFrom(wh))).reconstructed.copiedFrom(wh)
 
           t.LetRec(
             Seq(t.LocalFunDef(id, Seq(), Seq(), t.UnitType().copiedFrom(wh), fullBody, flags.map(transform)).copiedFrom(wh)),
@@ -251,7 +251,7 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
         case wh @ s.While(cond, body, optInv, optWeakInv, flags) if exprHasReturn(expr) =>
 
           val id = FreshIdentifier(fd.id.name + "While")
-          val loopType = ControlFlowSort.controlFlow(simpleWhileTransformer.transform(retType), t.UnitType())
+          val loopType = ControlFlowSort.controlFlow(simpleWhileTransformer.transform(retType), t.UnitType().copiedFrom(wh))
           val tpe = t.FunctionType(Seq(), loopType.copiedFrom(wh)).copiedFrom(wh)
 
           val specced = s.exprOps.BodyWithSpecs(body)
@@ -260,12 +260,12 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
             t.IfExpr(
               simpleWhileTransformer.transform(cond),
               t.ApplyLetRec(id, Seq(), tpe, Seq(), Seq()).copiedFrom(wh),
-              ControlFlowSort.proceed(retTypeChecked, t.UnitType(), t.UnitLiteral()).copiedFrom(wh)
+              ControlFlowSort.proceed(retTypeChecked, t.UnitType().copiedFrom(wh), t.UnitLiteral().copiedFrom(wh)).copiedFrom(wh)
             ).copiedFrom(wh)
 
           val newBody = specced.bodyOpt.map { body =>
-            ControlFlowSort.andThen(retTypeChecked, t.UnitType(), t.UnitType(),
-              transform(body, s.UnitType()),
+            ControlFlowSort.andThen(retTypeChecked, t.UnitType().copiedFrom(wh), t.UnitType().copiedFrom(wh),
+              transform(body, s.UnitType().copiedFrom(wh)),
               _ => ite,
               wh.getPos
             )
@@ -279,7 +279,7 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
           val newPost =
             t.Lambda(
               Seq(cfWhileVal),
-              ControlFlowSort.buildMatch(retTypeChecked, t.UnitType(), cfWhileVal.toVariable,
+              ControlFlowSort.buildMatch(retTypeChecked, t.UnitType().copiedFrom(wh), cfWhileVal.toVariable,
                 // when the while loop returns, we check that the while loop invariant and the
                 // postcondition of the top-level function hold
                 v => t.SplitAnd.many(
@@ -292,7 +292,7 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
                       )(using t.convertToVal)
                     case s.exprOps.Postcondition(l @ s.Lambda(_, _)) =>
                       sys.error(s"Unexpected number of params for postcondition lambda: $l")
-                  }.getOrElse(t.BooleanLiteral(true)),
+                  }.getOrElse(t.BooleanLiteral(true).copiedFrom(wh)),
                 ),
                 // when the while loop terminates without returning, we check the loop condition
                 // is false and that the invariant and weak invariant are true
@@ -310,7 +310,7 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
             t.exprOps.Precondition(t.SplitAnd.manyJoin((optInvChecked.toSeq ++ optWeakInvChecked) :+ getFunctionalResult(condChecked))).setPos(wh) +:
             specced.specs.map(_.transform(simpleWhileTransformer))
 
-          val fullBody = t.exprOps.BodyWithSpecs(newSpecs, newBody.getOrElse(t.UnitLiteral())).reconstructed.copiedFrom(wh)
+          val fullBody = t.exprOps.BodyWithSpecs(newSpecs, newBody.getOrElse(t.UnitLiteral().copiedFrom(wh))).reconstructed.copiedFrom(wh)
           val flagsChecked = flags.map(simpleWhileTransformer.transform)
 
           t.LetRec(
@@ -318,7 +318,7 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
             t.IfExpr(
               condChecked,
               t.ApplyLetRec(id, Seq(), tpe, Seq(), Seq()).copiedFrom(wh),
-              ControlFlowSort.proceed(retTypeChecked, t.UnitType(), t.UnitLiteral()).copiedFrom(wh)
+              ControlFlowSort.proceed(retTypeChecked, t.UnitType().copiedFrom(wh), t.UnitLiteral().copiedFrom(wh)).copiedFrom(wh)
             ).copiedFrom(wh)
           ).copiedFrom(wh)
 
@@ -435,7 +435,7 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
 
             case es =>
               val (nonReturnEs, others) = es.span(e => !exprHasReturn(e))
-              val nonReturnsEsChecked = nonReturnEs.map(simpleWhileTransformer.transform(_))
+              val nonReturnsEsChecked = nonReturnEs.map(simpleWhileTransformer.transform)
               if (others.isEmpty)
                 t.Block(nonReturnsEsChecked.init, nonReturnsEsChecked.last).copiedFrom(expr)
               else
@@ -455,7 +455,7 @@ class ReturnElimination(override val s: Trees, override val t: Trees)
           val currentTypeChecked = simpleWhileTransformer.transform(currentType)
 
           def rec(es: Seq[s.Expr], tes: Seq[t.Expr]): t.Expr = es match {
-            case Seq() => recons(ids, tvs, tes, ttps, tflags)
+            case Seq() => recons(ids, tvs, tes, ttps, tflags).copiedFrom(expr)
             case e +: rest if !exprHasReturn(e) =>
               // We use a let-binding here to preserve execution order.
               val eTpe = widenTp(e.getType)

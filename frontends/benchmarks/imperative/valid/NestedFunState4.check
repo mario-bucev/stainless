@@ -1,0 +1,21 @@
+22:7;deepWhile;postcondition;valid
+22:7;deepWhile;postcondition;valid
+22:7;deepWhile;postcondition;valid
+22:7;deepWhile;postcondition;valid
+22:7;deepWhile;precondition;valid
+22:7;deepWhile;precondition;valid
+22:7;iter;precondition;valid
+22:7;iter;precondition;valid
+23:19;deepWhile;non-negative measure;valid
+30:20;iter;postcondition;valid
+33:5;deep;precondition;valid
+33:5;deep;precondition;valid
+33:5;deepWhile;postcondition;valid
+33:5;deepWhile;postcondition;valid
+33:5;deepWhile;postcondition;valid
+33:5;deepWhile;postcondition;valid
+33:5;deepWhile;precondition;valid
+33:5;deepWhile;precondition;valid
+34:17;deepWhile;non-negative measure;valid
+36:7;deepWhile;precondition;valid
+39:5;deep;postcondition;valid

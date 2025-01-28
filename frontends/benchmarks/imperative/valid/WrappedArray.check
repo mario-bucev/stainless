@@ -1,0 +1,10 @@
+8:10;getA;array index within bounds;valid
+16:11;test;precondition;valid
+17:9;test;precondition;valid
+18:12;test;body assertion;valid
+18:17;test;array index within bounds;valid
+19:12;test;body assertion;valid
+20:11;test;precondition;valid
+21:12;test;body assertion;valid
+21:17;test;array index within bounds;valid
+21:17;test;array index within bounds;valid

@@ -1,0 +1,94 @@
+9:5;containsFrom;precondition;valid
+9:5;containsFrom;precondition;valid
+9:5;containsFromWhile;body assertion: match exhaustiveness;valid
+9:5;containsFromWhile;body assertion: match exhaustiveness;valid
+9:5;containsFromWhile;body assertion: match exhaustiveness;valid
+9:5;containsFromWhile;body assertion: match exhaustiveness;valid
+9:5;containsFromWhile;body assertion: match exhaustiveness;valid
+9:5;containsFromWhile;postcondition;valid
+9:5;containsFromWhile;postcondition;valid
+9:5;containsFromWhile;postcondition;valid
+9:5;containsFromWhile;postcondition;valid
+9:5;containsFromWhile;precondition;valid
+9:5;containsFromWhile;precondition;valid
+10:17;containsFromWhile;non-negative measure;valid
+11:13;containsFromWhile;array index within bounds;valid
+12:7;containsFromWhile;body assertion: match exhaustiveness;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+13:18;containsFromWhile;postcondition;valid
+14:5;containsFrom;body assertion: match exhaustiveness;valid
+18:7;containsFromLemma;postcondition;valid
+18:56;containsFromLemma;precondition;valid
+19:39;containsFromLemma;precondition;valid
+22:24;containsFromLemma;array index within bounds;valid
+26:65;contains;precondition;valid
+29:12;testContains;body assertion;valid
+30:12;testContains;body assertion;valid
+31:12;testContains;body assertion;valid
+32:12;testContains;body assertion;valid
+33:12;testContains;body assertion;valid
+40:5;findIndex;precondition;valid
+40:5;findIndexWhile;body assertion: match exhaustiveness;valid
+40:5;findIndexWhile;body assertion: match exhaustiveness;valid
+40:5;findIndexWhile;body assertion: match exhaustiveness;valid
+40:5;findIndexWhile;body assertion: match exhaustiveness;valid
+40:5;findIndexWhile;body assertion: match exhaustiveness;valid
+40:5;findIndexWhile;postcondition;valid
+40:5;findIndexWhile;postcondition;valid
+40:5;findIndexWhile;postcondition;valid
+40:5;findIndexWhile;postcondition;valid
+40:5;findIndexWhile;precondition;valid
+41:17;findIndexWhile;non-negative measure;valid
+42:13;findIndexWhile;array index within bounds;valid
+43:7;findIndexWhile;body assertion: match exhaustiveness;valid
+43:7;findIndexWhile;precondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+45:18;findIndexWhile;postcondition;valid
+46:9;findIndexWhile;array index within bounds;valid
+46:9;findIndexWhile;array index within bounds;valid
+46:9;findIndexWhile;array index within bounds;valid
+46:9;findIndexWhile;array index within bounds;valid
+46:9;findIndexWhile;array index within bounds;valid
+46:9;findIndexWhile;array index within bounds;valid
+46:9;findIndexWhile;array index within bounds;valid
+46:9;findIndexWhile;array index within bounds;valid
+46:9;findIndexWhile;array index within bounds;valid
+47:7;findIndexWhile;precondition;valid
+47:7;findIndexWhile;precondition;valid
+47:7;findIndexWhile;precondition;valid
+47:7;findIndexWhile;precondition;valid
+47:7;findIndexWhile;precondition;valid
+47:7;findIndexWhile;precondition;valid
+47:7;findIndexWhile;precondition;valid
+47:7;findIndexWhile;precondition;valid
+47:7;findIndexWhile;precondition;valid
+49:5;findIndex;body assertion;valid
+49:5;findIndex;body assertion: match exhaustiveness;valid
+54:12;testFindIndex;body assertion;valid
+54:12;testFindIndex;precondition;valid
+55:12;testFindIndex;body assertion;valid
+55:12;testFindIndex;precondition;valid
+56:12;testFindIndex;body assertion;valid
+56:12;testFindIndex;precondition;valid
+57:12;testFindIndex;body assertion;valid
+57:12;testFindIndex;precondition;valid

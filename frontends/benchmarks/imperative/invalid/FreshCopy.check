@@ -1,0 +1,7 @@
+5:7;f;cast correctness;valid
+5:7;f;cast correctness;valid
+8:7;f;body assertion: Inner refinement lifting;valid
+8:7;f;postcondition;valid
+8:7;f;precondition;valid
+8:7;f;precondition;valid
+12:12;f;body assertion;invalid

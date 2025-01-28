@@ -1,0 +1,58 @@
+12:7;mult;precondition;valid
+12:7;mult;precondition;valid
+12:7;multWhile;postcondition;valid
+12:7;multWhile;postcondition;valid
+12:7;multWhile;postcondition;valid
+12:7;multWhile;postcondition;valid
+12:7;multWhile;precondition;valid
+12:7;multWhile;precondition;valid
+13:19;multWhile;non-negative measure;valid
+19:7;mult;precondition;valid
+19:7;mult;precondition;valid
+19:7;multWhile;postcondition;valid
+19:7;multWhile;postcondition;valid
+19:7;multWhile;postcondition;valid
+19:7;multWhile;postcondition;valid
+19:7;multWhile;precondition;valid
+19:7;multWhile;precondition;valid
+23:34;multWhile;non-negative measure;valid
+25:5;mult;postcondition;valid
+33:7;add;precondition;valid
+33:7;add;precondition;valid
+33:7;addWhile;postcondition;valid
+33:7;addWhile;postcondition;valid
+33:7;addWhile;postcondition;valid
+33:7;addWhile;postcondition;valid
+33:7;addWhile;precondition;valid
+33:7;addWhile;precondition;valid
+34:19;addWhile;non-negative measure;valid
+40:7;add;precondition;valid
+40:7;add;precondition;valid
+40:7;addWhile;postcondition;valid
+40:7;addWhile;postcondition;valid
+40:7;addWhile;postcondition;valid
+40:7;addWhile;postcondition;valid
+40:7;addWhile;precondition;valid
+40:7;addWhile;precondition;valid
+44:33;addWhile;non-negative measure;valid
+46:5;add;postcondition;valid
+54:5;sum;precondition;valid
+54:5;sum;precondition;valid
+54:5;sumWhile;postcondition;valid
+54:5;sumWhile;postcondition;valid
+54:5;sumWhile;postcondition;valid
+54:5;sumWhile;postcondition;valid
+54:5;sumWhile;precondition;valid
+54:5;sumWhile;precondition;valid
+55:17;sumWhile;non-negative measure;valid
+59:5;sum;postcondition;valid
+66:5;divide;precondition;valid
+66:5;divide;precondition;valid
+66:5;divideWhile;postcondition;valid
+66:5;divideWhile;postcondition;valid
+66:5;divideWhile;postcondition;valid
+66:5;divideWhile;postcondition;valid
+66:5;divideWhile;precondition;valid
+66:5;divideWhile;precondition;valid
+67:17;divideWhile;non-negative measure;valid
+71:5;divide;postcondition;valid

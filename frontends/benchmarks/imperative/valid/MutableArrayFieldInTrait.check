@@ -1,0 +1,11 @@
+10:9;buf;cast correctness;valid
+10:9;buf;cast correctness;valid
+20:13;modify;array index within bounds;valid
+29:5;test;precondition;valid
+31:12;test;body assertion;valid
+31:23;test;array index within bounds;valid
+31:23;test;array index within bounds;valid
+32:12;test;body assertion;valid
+32:23;test;array index within bounds;valid
+33:12;test;body assertion;valid
+33:23;test;array index within bounds;valid

@@ -1,0 +1,9 @@
+9:7;f;body assertion: Inner refinement lifting;valid
+9:7;f;postcondition;valid
+9:7;f;precondition;valid
+9:7;f;precondition;valid
+14:12;f;body assertion;valid
+15:12;f;body assertion;valid
+19:12;f;body assertion;valid
+20:12;f;body assertion;valid
+21:12;f;body assertion;valid

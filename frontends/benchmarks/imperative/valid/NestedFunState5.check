@@ -1,0 +1,12 @@
+21:20;iter;postcondition;valid
+24:5;deep;precondition;valid
+24:5;deep;precondition;valid
+24:5;deepWhile;postcondition;valid
+24:5;deepWhile;postcondition;valid
+24:5;deepWhile;postcondition;valid
+24:5;deepWhile;postcondition;valid
+24:5;deepWhile;precondition;valid
+24:5;deepWhile;precondition;valid
+25:17;deepWhile;non-negative measure;valid
+27:7;deepWhile;precondition;valid
+30:5;deep;postcondition;valid

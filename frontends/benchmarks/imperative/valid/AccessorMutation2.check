@@ -1,0 +1,17 @@
+12:9;box;cast correctness;valid
+12:9;box;cast correctness;valid
+12:9;box;cast correctness;valid
+24:12;t1;body assertion;valid
+24:27;t1;array index within bounds;valid
+29:5;t2;body assertion: Inner refinement lifting;valid
+29:5;t2;body assertion: Inner refinement lifting;valid
+29:5;t2;body assertion: Inner refinement lifting;valid
+29:5;t2;body assertion: Inner refinement lifting;valid
+29:5;t2;postcondition;valid
+29:31;t2;body assertion: Inner refinement lifting;valid
+29:31;t2;body assertion: Inner refinement lifting;valid
+29:31;t2;cast correctness;valid
+29:31;t2;cast correctness;valid
+29:31;t2;cast correctness;valid
+30:12;t2;body assertion;valid
+30:27;t2;array index within bounds;valid

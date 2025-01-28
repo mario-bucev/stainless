@@ -8,14 +8,14 @@ trait Trees extends throwing.Trees { self =>
 
   override protected def unapplyScrut(scrut: Expr, up: UnapplyPattern)(using s: Symbols): Expr =
     if (s.lookupFunction(up.id).exists(_.flags.exists { case IsMethodOf(_) => true case _ => false }) && up.recs.size == 1) {
-      MethodInvocation(up.recs.head, up.id, up.tps, Seq(scrut))
+      MethodInvocation(up.recs.head, up.id, up.tps, Seq(scrut)).copiedFrom(scrut)
     } else {
       super.unapplyScrut(scrut, up)
     }
 
   override protected def unapplyAccessor(unapplied: Expr, id: Identifier, up: UnapplyPattern)(using s: Symbols): Expr =
     if (s.lookupFunction(id).exists(_.flags.exists { case IsMethodOf(_) => true case _ => false })) {
-      MethodInvocation(unapplied, id, Seq(), Seq())
+      MethodInvocation(unapplied, id, Seq(), Seq()).copiedFrom(unapplied)
     } else {
       super.unapplyAccessor(unapplied, id, up)
     }

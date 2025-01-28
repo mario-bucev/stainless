@@ -21,7 +21,7 @@ trait SymbolOps extends TypeOps with innerfuns.SymbolOps { self =>
 
         val pairs = ct.tcd.fields zip subps
         val subMaps = pairs.map { p =>
-          mapForPattern(ClassSelector(AsInstanceOf(in, ct), p._1.id), p._2)
+          mapForPattern(ClassSelector(AsInstanceOf(in, ct).setPos(in), p._1.id).setPos(in), p._2)
         }
         val together = subMaps.flatten.toMap
         bindIn(b, ct) ++ together

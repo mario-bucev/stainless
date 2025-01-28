@@ -1,0 +1,11 @@
+13:7;inside;postcondition;valid
+16:5;foo1;precondition;valid
+33:7;inside;postcondition;valid
+33:7;inside;postcondition;valid
+44:19;evenSumIsEven;remainder by zero;valid
+44:33;evenSumIsEven;remainder by zero;valid
+45:17;evenSumIsEven;remainder by zero;valid
+52:7;inside;postcondition;valid
+52:15;inside;remainder by zero;valid
+52:32;inside;remainder by zero;valid
+52:44;inside;precondition;valid

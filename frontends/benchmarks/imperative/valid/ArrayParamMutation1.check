@@ -1,0 +1,5 @@
+8:7;update;array index within bounds;valid
+12:13;f;body assertion: Non-negative array size;valid
+13:5;f;precondition;valid
+14:5;f;postcondition;valid
+14:7;f;array index within bounds;valid

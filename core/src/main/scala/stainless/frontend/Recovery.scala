@@ -270,7 +270,7 @@ object RecoverExternTypes extends RecoveryStrategy {
     Right(fd.copy(
       params = fd.params.map(vd => vd.copy(tpe = xt.typeOps.replace(subst, vd.tpe))),
       returnType = returnType,
-      fullBody = xt.NoTree(returnType)
+      fullBody = xt.NoTree(returnType).copiedFrom(fd)
     ))
   }
 

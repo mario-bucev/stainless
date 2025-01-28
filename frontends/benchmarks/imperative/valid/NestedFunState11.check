@@ -1,0 +1,6 @@
+13:17;rec;non-negative measure;valid
+16:9;rec;precondition;valid
+18:20;rec;postcondition;valid
+18:20;rec;postcondition;valid
+20:5;foo;precondition;valid
+22:12;foo;body assertion;valid

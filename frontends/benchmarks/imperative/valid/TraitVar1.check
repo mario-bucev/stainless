@@ -1,0 +1,8 @@
+8:9;getProp;precondition;valid
+9:9;setProp;body assertion: Inner refinement lifting;valid
+9:9;setProp;precondition;valid
+18:36;setProp;body assertion: Inner refinement lifting;valid
+18:36;setProp;body assertion: Inner refinement lifting;valid
+18:36;setProp;postcondition;valid
+18:43;setProp;cast correctness;valid
+24:5;theorem;postcondition;valid

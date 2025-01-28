@@ -1,0 +1,10 @@
+14:5;test;precondition;valid
+14:5;test;precondition;valid
+14:5;testWhile;postcondition;valid
+14:5;testWhile;postcondition;valid
+14:5;testWhile;postcondition;valid
+14:5;testWhile;postcondition;valid
+14:5;testWhile;precondition;valid
+14:5;testWhile;precondition;valid
+15:17;testWhile;non-negative measure;valid
+20:5;test;postcondition;valid

@@ -1,0 +1,19 @@
+8:5;example1;body assertion: match exhaustiveness;valid
+13:5;example2;body assertion: match exhaustiveness;valid
+18:5;example3;body assertion: match exhaustiveness;valid
+23:5;example4;body assertion: match exhaustiveness;valid
+28:5;example5;body assertion: match exhaustiveness;valid
+37:5;example6;body assertion: match exhaustiveness;valid
+41:12;tests;body assertion;valid
+42:12;tests;body assertion;valid
+43:12;tests;body assertion;valid
+44:12;tests;body assertion;valid
+45:12;tests;body assertion;valid
+46:12;tests;body assertion;valid
+47:12;tests;body assertion;valid
+48:12;tests;body assertion;valid
+49:12;tests;body assertion;valid
+50:12;tests;body assertion;valid
+50:12;tests;precondition;valid
+51:12;tests;body assertion;valid
+51:12;tests;precondition;valid

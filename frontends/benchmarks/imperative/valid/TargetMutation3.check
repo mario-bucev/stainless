@@ -1,0 +1,61 @@
+17:21;badManners;array index within bounds;valid
+18:21;badManners;array index within bounds;valid
+19:21;badManners;array index within bounds;valid
+20:21;badManners;array index within bounds;valid
+21:21;badManners;array index within bounds;valid
+22:21;badManners;array index within bounds;valid
+28:27;badManners;array index within bounds;valid
+28:27;badManners;array index within bounds;valid
+28:27;badManners;array index within bounds;valid
+28:27;badManners;array index within bounds;valid
+28:27;badManners;array index within bounds;valid
+28:27;badManners;array index within bounds;valid
+28:27;badManners;array index within bounds;valid
+29:9;badManners;array index within bounds;valid
+31:12;badManners;body assertion;valid
+32:12;badManners;body assertion;valid
+32:16;badManners;array index within bounds;valid
+33:12;badManners;body assertion;valid
+34:12;badManners;body assertion;valid
+34:21;badManners;array index within bounds;valid
+35:12;badManners;body assertion;valid
+38:9;badManners;array index within bounds;valid
+39:12;badManners;body assertion;valid
+43:7;badManners;array index within bounds;valid
+48:12;badManners;body assertion;valid
+50:12;badManners;body assertion;valid
+51:12;badManners;body assertion;valid
+51:16;badManners;array index within bounds;valid
+52:12;badManners;body assertion;valid
+53:12;badManners;body assertion;valid
+57:7;badManners;array index within bounds;valid
+64:30;badManners;array index within bounds;valid
+64:30;badManners;array index within bounds;valid
+64:30;badManners;array index within bounds;valid
+65:14;badManners;body assertion;valid
+73:11;badManners;array index within bounds;valid
+75:17;badManners;array index within bounds;valid
+83:13;badManners;array index within bounds;valid
+87:12;badManners;body assertion;valid
+87:27;badManners;array index within bounds;valid
+87:27;badManners;array index within bounds;valid
+87:27;badManners;array index within bounds;valid
+87:27;badManners;array index within bounds;valid
+87:54;badManners;array index within bounds;valid
+87:84;badManners;array index within bounds;valid
+88:12;badManners;body assertion;valid
+88:28;badManners;array index within bounds;valid
+88:52;badManners;array index within bounds;valid
+88:85;badManners;array index within bounds;valid
+88:113;badManners;array index within bounds;valid
+91:16;badManners;array index within bounds;valid
+92:12;badManners;body assertion;valid
+92:16;badManners;array index within bounds;valid
+93:12;badManners;body assertion;valid
+93:21;badManners;array index within bounds;valid
+94:21;badManners;array index within bounds;valid
+95:12;badManners;body assertion;valid
+95:16;badManners;array index within bounds;valid
+96:12;badManners;body assertion;valid
+96:21;badManners;array index within bounds;valid
+97:12;badManners;body assertion;valid

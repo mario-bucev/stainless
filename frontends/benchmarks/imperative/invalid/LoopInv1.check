@@ -1,0 +1,11 @@
+11:7;empty;postcondition;valid
+23:5;check;precondition;valid
+23:5;check;precondition;valid
+23:5;checkWhile;postcondition;valid
+23:5;checkWhile;postcondition;valid
+23:5;checkWhile;postcondition;valid
+23:5;checkWhile;postcondition;valid
+23:5;checkWhile;precondition;valid
+23:5;checkWhile;precondition;invalid
+24:7;checkWhile;body assertion: match exhaustiveness;valid
+35:21;checkWhile;precondition;valid

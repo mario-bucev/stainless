@@ -1,0 +1,5 @@
+9:19;evenSumIsEven;remainder by zero;valid
+9:33;evenSumIsEven;remainder by zero;valid
+10:17;evenSumIsEven;remainder by zero;valid
+17:7;inside;postcondition;inconclusive
+17:7;inside;precondition;invalid

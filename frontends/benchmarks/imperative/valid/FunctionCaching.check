@@ -1,0 +1,23 @@
+9:5;fun;body assertion: match exhaustiveness;valid
+17:20;fun;body assertion: match exhaustiveness;valid
+17:20;fun;body assertion: match exhaustiveness;valid
+17:20;fun;body assertion: match exhaustiveness;valid
+17:20;fun;postcondition;valid
+17:20;fun;postcondition;valid
+17:20;fun;postcondition;valid
+18:20;fun;postcondition;valid
+18:20;fun;postcondition;valid
+18:20;fun;postcondition;valid
+19:21;fun;postcondition;valid
+19:21;fun;postcondition;valid
+19:21;fun;postcondition;valid
+25:5;funProperlyCached;precondition;valid
+27:5;funProperlyCached;postcondition;valid
+33:5;multipleCalls;body assertion: match exhaustiveness;valid
+33:5;multipleCalls;non-negative measure;valid
+33:5;multipleCalls;postcondition;valid
+34:21;multipleCalls;postcondition;valid
+35:12;multipleCalls;precondition;valid
+35:12;multipleCalls;precondition;valid
+37:9;multipleCalls;postcondition;valid
+37:9;multipleCalls;precondition;valid
